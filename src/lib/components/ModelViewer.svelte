@@ -3,8 +3,7 @@
 	import { createViewer } from '$lib/client/model-viewer';
 	import { RotateCw, Camera, RotateCcw } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-
-	type Lang = 'de' | 'en';
+	import type { Lang } from '$lib/i18n';
 
 	let {
 		glbBase64 = $bindable(''),
@@ -20,19 +19,15 @@
 	let viewerReady = $state(false);
 	let autoRotate = $state(false);
 
-	const t = {
-		de: {
-			placeholder: '3D-Vorschau erscheint hier',
-			cameraReset: 'Kamera zurücksetzen',
-			autoRotate: 'Auto-Rotation',
-			screenshot: 'Screenshot'
-		},
-		en: {
-			placeholder: '3D preview will appear here',
-			cameraReset: 'Reset camera',
-			autoRotate: 'Auto-rotate',
-			screenshot: 'Screenshot'
-		}
+	const t: Record<Lang, Record<string, string>> = {
+		de: { placeholder: '3D-Vorschau erscheint hier', cameraReset: 'Kamera zurücksetzen', autoRotate: 'Auto-Rotation', screenshot: 'Screenshot' },
+		en: { placeholder: '3D preview will appear here', cameraReset: 'Reset camera', autoRotate: 'Auto-rotate', screenshot: 'Screenshot' },
+		fr: { placeholder: 'L\'aperçu 3D apparaîtra ici', cameraReset: 'Réinitialiser la caméra', autoRotate: 'Rotation auto', screenshot: 'Capture d\'écran' },
+		es: { placeholder: 'La vista previa 3D aparecerá aquí', cameraReset: 'Restablecer cámara', autoRotate: 'Auto-rotación', screenshot: 'Captura de pantalla' },
+		it: { placeholder: 'L\'anteprima 3D apparirà qui', cameraReset: 'Ripristina fotocamera', autoRotate: 'Auto-rotazione', screenshot: 'Screenshot' },
+		pt: { placeholder: 'A visualização 3D aparecerá aqui', cameraReset: 'Redefinir câmera', autoRotate: 'Auto-rotação', screenshot: 'Captura de tela' },
+		ja: { placeholder: '3Dプレビューがここに表示されます', cameraReset: 'カメラをリセット', autoRotate: '自動回転', screenshot: 'スクリーンショット' },
+		zh: { placeholder: '3D预览将显示在这里', cameraReset: '重置相机', autoRotate: '自动旋转', screenshot: '截图' }
 	};
 
 	onMount(() => {

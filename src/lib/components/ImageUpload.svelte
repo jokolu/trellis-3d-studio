@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { ImagePlus, X, Upload } from 'lucide-svelte';
-
-	type Lang = 'de' | 'en';
+	import type { Lang } from '$lib/i18n';
 
 	let {
 		imageData = $bindable(''),
@@ -16,17 +15,15 @@
 	let fileInput: HTMLInputElement;
 	let isDragging = $state(false);
 
-	const t = {
-		de: {
-			dropImage: 'Bild hierher ziehen oder klicken',
-			imageFormats: 'PNG, JPG, WebP',
-			removeImage: 'Bild entfernen'
-		},
-		en: {
-			dropImage: 'Drag image here or click',
-			imageFormats: 'PNG, JPG, WebP',
-			removeImage: 'Remove image'
-		}
+	const t: Record<Lang, Record<string, string>> = {
+		de: { dropImage: 'Bild hierher ziehen oder klicken', imageFormats: 'PNG, JPG, WebP', removeImage: 'Bild entfernen' },
+		en: { dropImage: 'Drag image here or click', imageFormats: 'PNG, JPG, WebP', removeImage: 'Remove image' },
+		fr: { dropImage: 'Glissez l\'image ici ou cliquez', imageFormats: 'PNG, JPG, WebP', removeImage: 'Supprimer l\'image' },
+		es: { dropImage: 'Arrastra la imagen aquí o haz clic', imageFormats: 'PNG, JPG, WebP', removeImage: 'Eliminar imagen' },
+		it: { dropImage: 'Trascina l\'immagine qui o clicca', imageFormats: 'PNG, JPG, WebP', removeImage: 'Rimuovi immagine' },
+		pt: { dropImage: 'Arraste a imagem aqui ou clique', imageFormats: 'PNG, JPG, WebP', removeImage: 'Remover imagem' },
+		ja: { dropImage: '画像をここにドラッグまたはクリック', imageFormats: 'PNG, JPG, WebP', removeImage: '画像を削除' },
+		zh: { dropImage: '拖拽图片到此处或点击', imageFormats: 'PNG, JPG, WebP', removeImage: '删除图片' }
 	};
 
 	function handleFile(file: File) {

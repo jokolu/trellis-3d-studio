@@ -17,9 +17,8 @@
 	import ModelViewer from '$lib/components/ModelViewer.svelte';
 	import SettingsPanel from '$lib/components/SettingsPanel.svelte';
 	import { themeStore, type Theme } from '$lib/theme';
+	import { LANGUAGES, type Lang } from '$lib/i18n';
 	import type { TaskStatus } from '$lib/types';
-
-	type Lang = 'de' | 'en';
 
 	let prompt = $state('');
 	let imageData = $state('');
@@ -47,6 +46,8 @@
 
 	const MAX_PROMPT_LENGTH = 512;
 
+	const VALID_LANGS = new Set<string>(LANGUAGES.map(l => l.code));
+
 	const examplePrompts: { short: string; full: string }[] = [
 		{ short: 'A medieval battle axe with runes', full: 'A medieval battle axe with glowing Norse runes carved into the dark iron blade, a worn leather-wrapped handle, intricate engravings on the axe head, fantasy weapon style, detailed metal texture' },
 		{ short: 'Red sports car, low poly', full: 'A bright red low-poly sports car with angular geometric body panels, sleek aerodynamic shape, black tinted windows, silver alloy wheels, retro polygon art style, clean flat shading' },
@@ -56,7 +57,7 @@
 		{ short: 'Space station module', full: 'A detailed sci-fi space station module with cylindrical habitat sections, rotating solar panel arrays, docking ports, external piping and conduit systems, white and grey hull panels with NASA-style markings, realistic industrial design' }
 	];
 
-	const t = {
+	const t: Record<Lang, Record<string, string>> = {
 		de: {
 			powered: 'Angetrieben von NVIDIA TRELLIS',
 			text: 'Text',
@@ -85,16 +86,7 @@
 			shortcut: 'Strg+Enter zum Generieren',
 			light: 'Hell',
 			dark: 'Dunkel',
-			system: 'System',
-			german: 'Deutsch',
-			english: 'English',
-			viewerPlaceholder: '3D-Vorschau erscheint hier',
-			cameraReset: 'Kamera zurücksetzen',
-			autoRotate: 'Auto-Rotation',
-			screenshot: 'Screenshot',
-			dropImage: 'Bild hierher ziehen oder klicken',
-			imageFormats: 'PNG, JPG, WebP',
-			removeImage: 'Bild entfernen'
+			system: 'System'
 		},
 		en: {
 			powered: 'Powered by NVIDIA TRELLIS',
@@ -124,16 +116,187 @@
 			shortcut: 'Ctrl+Enter to generate',
 			light: 'Light',
 			dark: 'Dark',
-			system: 'System',
-			german: 'Deutsch',
-			english: 'English',
-			viewerPlaceholder: '3D preview will appear here',
-			cameraReset: 'Reset camera',
-			autoRotate: 'Auto-rotate',
-			screenshot: 'Screenshot',
-			dropImage: 'Drag image here or click',
-			imageFormats: 'PNG, JPG, WebP',
-			removeImage: 'Remove image'
+			system: 'System'
+		},
+		fr: {
+			powered: 'Propulsé par NVIDIA TRELLIS',
+			text: 'Texte',
+			image: 'Image',
+			both: 'Texte + Image',
+			imageWarning: 'Les images ne fonctionnent qu\'avec un serveur NIM auto-hébergé. L\'API NVIDIA hébergée ne prend en charge que les images d\'exemple prédéfinies.',
+			imageUpload: 'Télécharger une image',
+			textPrompt: 'Prompt texte',
+			placeholder: 'Décrivez votre modèle 3D...',
+			examples: 'Exemples de prompts',
+			generate: 'Générer le modèle 3D',
+			generating: 'Génération...',
+			genStarted: 'Génération démarrée...',
+			genStartedDesc: 'Environ 2-3 minutes',
+			genRunning: 'Le modèle est en cours de génération',
+			elapsed: 'écoulé',
+			remaining: 'restant',
+			genSuccess: 'Modèle 3D généré avec succès !',
+			duration: 'Durée',
+			genError: 'Échec de la génération',
+			unexpected: 'Réponse API inattendue',
+			unknownError: 'Erreur inconnue',
+			error: 'Erreur',
+			download: 'télécharger',
+			downloadStarted: 'Téléchargement démarré',
+			shortcut: 'Ctrl+Entrée pour générer',
+			light: 'Clair',
+			dark: 'Sombre',
+			system: 'Système'
+		},
+		es: {
+			powered: 'Impulsado por NVIDIA TRELLIS',
+			text: 'Texto',
+			image: 'Imagen',
+			both: 'Texto + Imagen',
+			imageWarning: 'Las imágenes solo funcionan con un servidor NIM autoalojado. La API alojada de NVIDIA solo admite imágenes de ejemplo predefinidas.',
+			imageUpload: 'Subir imagen',
+			textPrompt: 'Prompt de texto',
+			placeholder: 'Describe tu modelo 3D...',
+			examples: 'Prompts de ejemplo',
+			generate: 'Generar modelo 3D',
+			generating: 'Generando...',
+			genStarted: 'Generación iniciada...',
+			genStartedDesc: 'Aprox. 2-3 minutos',
+			genRunning: 'El modelo se está generando',
+			elapsed: 'transcurrido',
+			remaining: 'restante',
+			genSuccess: '¡Modelo 3D generado con éxito!',
+			duration: 'Duración',
+			genError: 'Error en la generación',
+			unexpected: 'Respuesta API inesperada',
+			unknownError: 'Error desconocido',
+			error: 'Error',
+			download: 'descargar',
+			downloadStarted: 'Descarga iniciada',
+			shortcut: 'Ctrl+Enter para generar',
+			light: 'Claro',
+			dark: 'Oscuro',
+			system: 'Sistema'
+		},
+		it: {
+			powered: 'Alimentato da NVIDIA TRELLIS',
+			text: 'Testo',
+			image: 'Immagine',
+			both: 'Testo + Immagine',
+			imageWarning: 'Le immagini funzionano solo con un server NIM self-hosted. L\'API NVIDIA ospitata supporta solo immagini di esempio predefinite.',
+			imageUpload: 'Carica immagine',
+			textPrompt: 'Prompt di testo',
+			placeholder: 'Descrivi il tuo modello 3D...',
+			examples: 'Prompt di esempio',
+			generate: 'Genera modello 3D',
+			generating: 'Generazione...',
+			genStarted: 'Generazione avviata...',
+			genStartedDesc: 'Circa 2-3 minuti',
+			genRunning: 'Il modello è in fase di generazione',
+			elapsed: 'trascorso',
+			remaining: 'rimanente',
+			genSuccess: 'Modello 3D generato con successo!',
+			duration: 'Durata',
+			genError: 'Generazione fallita',
+			unexpected: 'Risposta API imprevista',
+			unknownError: 'Errore sconosciuto',
+			error: 'Errore',
+			download: 'scarica',
+			downloadStarted: 'Download avviato',
+			shortcut: 'Ctrl+Invio per generare',
+			light: 'Chiaro',
+			dark: 'Scuro',
+			system: 'Sistema'
+		},
+		pt: {
+			powered: 'Desenvolvido por NVIDIA TRELLIS',
+			text: 'Texto',
+			image: 'Imagem',
+			both: 'Texto + Imagem',
+			imageWarning: 'As imagens só funcionam com um servidor NIM auto-hospedado. A API hospedada da NVIDIA suporta apenas imagens de exemplo predefinidas.',
+			imageUpload: 'Enviar imagem',
+			textPrompt: 'Prompt de texto',
+			placeholder: 'Descreva seu modelo 3D...',
+			examples: 'Prompts de exemplo',
+			generate: 'Gerar modelo 3D',
+			generating: 'Gerando...',
+			genStarted: 'Geração iniciada...',
+			genStartedDesc: 'Aprox. 2-3 minutos',
+			genRunning: 'O modelo está sendo gerado',
+			elapsed: 'decorrido',
+			remaining: 'restante',
+			genSuccess: 'Modelo 3D gerado com sucesso!',
+			duration: 'Duração',
+			genError: 'Falha na geração',
+			unexpected: 'Resposta inesperada da API',
+			unknownError: 'Erro desconhecido',
+			error: 'Erro',
+			download: 'baixar',
+			downloadStarted: 'Download iniciado',
+			shortcut: 'Ctrl+Enter para gerar',
+			light: 'Claro',
+			dark: 'Escuro',
+			system: 'Sistema'
+		},
+		ja: {
+			powered: 'NVIDIA TRELLIS 搭載',
+			text: 'テキスト',
+			image: '画像',
+			both: 'テキスト + 画像',
+			imageWarning: '画像は自己ホスト型NIMサーバーでのみ機能します。ホスト型NVIDIA APIは事前定義されたサンプル画像のみをサポートしています。',
+			imageUpload: '画像アップロード',
+			textPrompt: 'テキストプロンプト',
+			placeholder: '3Dモデルを説明してください...',
+			examples: 'プロンプト例',
+			generate: '3Dモデルを生成',
+			generating: '生成中...',
+			genStarted: '生成を開始しました...',
+			genStartedDesc: '約2-3分',
+			genRunning: 'モデルを生成中',
+			elapsed: '経過',
+			remaining: '残り',
+			genSuccess: '3Dモデルの生成に成功しました！',
+			duration: '所要時間',
+			genError: '生成に失敗しました',
+			unexpected: '予期しないAPIレスポンス',
+			unknownError: '不明なエラー',
+			error: 'エラー',
+			download: 'ダウンロード',
+			downloadStarted: 'ダウンロード開始',
+			shortcut: 'Ctrl+Enterで生成',
+			light: 'ライト',
+			dark: 'ダーク',
+			system: 'システム'
+		},
+		zh: {
+			powered: '由 NVIDIA TRELLIS 提供支持',
+			text: '文本',
+			image: '图像',
+			both: '文本 + 图像',
+			imageWarning: '图像仅在自托管NIM服务器上可用。托管的NVIDIA API仅支持预定义的示例图像。',
+			imageUpload: '上传图像',
+			textPrompt: '文本提示',
+			placeholder: '描述您的3D模型...',
+			examples: '示例提示',
+			generate: '生成3D模型',
+			generating: '生成中...',
+			genStarted: '生成已开始...',
+			genStartedDesc: '大约2-3分钟',
+			genRunning: '模型正在生成中',
+			elapsed: '已用',
+			remaining: '剩余',
+			genSuccess: '3D模型生成成功！',
+			duration: '用时',
+			genError: '生成失败',
+			unexpected: '意外的API响应',
+			unknownError: '未知错误',
+			error: '错误',
+			download: '下载',
+			downloadStarted: '下载已开始',
+			shortcut: 'Ctrl+Enter 生成',
+			light: '浅色',
+			dark: '深色',
+			system: '跟随系统'
 		}
 	};
 
@@ -161,7 +324,7 @@
 		});
 
 		const stored = localStorage.getItem('lang');
-		if (stored === 'en' || stored === 'de') lang = stored;
+		if (stored && VALID_LANGS.has(stored)) lang = stored as Lang;
 
 		return unsubscribe;
 	});
@@ -338,19 +501,15 @@
 					<Languages size={18} />
 				</Button>
 				{#if langMenuOpen}
-					<div class="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
-						<button
-							class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {lang === 'de' ? 'font-medium' : ''}"
-							onclick={(e) => { e.stopPropagation(); setLang('de'); }}
-						>
-							🇩🇪 {t[lang].german}
-						</button>
-						<button
-							class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {lang === 'en' ? 'font-medium' : ''}"
-							onclick={(e) => { e.stopPropagation(); setLang('en'); }}
-						>
-							🇬🇧 {t[lang].english}
-						</button>
+					<div class="absolute right-0 top-full mt-1 z-50 min-w-[160px] max-h-[320px] overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
+						{#each LANGUAGES as l}
+							<button
+								class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {lang === l.code ? 'font-medium' : ''}"
+								onclick={(e) => { e.stopPropagation(); setLang(l.code); }}
+							>
+								{l.flag} {l.name}
+							</button>
+						{/each}
 					</div>
 				{/if}
 			</div>
