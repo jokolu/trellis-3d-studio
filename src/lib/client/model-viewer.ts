@@ -7,12 +7,15 @@ export function createViewer(container: HTMLElement): {
 	loadGlbUrl: (url: string) => void;
 	destroy: () => void;
 	resize: () => void;
+	setAutoRotate: (enabled: boolean) => void;
+	resetCamera: () => void;
+	takeScreenshot: () => string | null;
 } {
 	const scene = new THREE.Scene();
 	const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 	camera.position.set(0, 1, 3);
 
-	const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+	const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
 	renderer.setSize(container.clientWidth, container.clientHeight);
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -44,8 +47,12 @@ export function createViewer(container: HTMLElement): {
 	scene.add(gridHelper);
 
 	let currentModel: THREE.Group | null = null;
+	let autoRotateEnabled = false;
 
 	const loader = new GLTFLoader();
+
+	const initialCameraPos = camera.position.clone();
+	const initialTarget = controls.target.clone();
 
 	function fitCameraToModel(object: THREE.Object3D) {
 		const box = new THREE.Box3().setFromObject(object);
@@ -121,6 +128,27 @@ export function createViewer(container: HTMLElement): {
 		}
 	}
 
+	function setAutoRotate(enabled: boolean) {
+		autoRotateEnabled = enabled;
+		controls.autoRotate = enabled;
+		controls.autoRotateSpeed = 2.0;
+	}
+
+	function resetCamera() {
+		if (currentModel) {
+			fitCameraToModel(currentModel);
+		} else {
+			camera.position.copy(initialCameraPos);
+			controls.target.copy(initialTarget);
+			controls.update();
+		}
+	}
+
+	function takeScreenshot(): string | null {
+		renderer.render(scene, camera);
+		return renderer.domElement.toDataURL('image/png');
+	}
+
 	let animationId: number;
 
 	function animate() {
@@ -149,5 +177,5 @@ export function createViewer(container: HTMLElement): {
 		renderer.setSize(width, height);
 	}
 
-	return { loadGlb, loadGlbUrl, destroy, resize };
+	return { loadGlb, loadGlbUrl, destroy, resize, setAutoRotate, resetCamera, takeScreenshot };
 }
