@@ -3,7 +3,8 @@
 	import { toast } from 'svelte-sonner';
 	import {
 		Loader2, Sparkles, Download, AlertCircle, Box,
-		Sun, Moon, Monitor, Timer, Info, Languages, PanelLeft, X, Menu
+		Sun, Moon, Monitor, Timer, Languages, PanelLeft, X, Menu,
+		History, Trash2
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -13,7 +14,6 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import ImageUpload from '$lib/components/ImageUpload.svelte';
 	import ModelViewer from '$lib/components/ModelViewer.svelte';
 	import SettingsPanel from '$lib/components/SettingsPanel.svelte';
 	import { themeStore, type Theme } from '$lib/theme';
@@ -21,18 +21,16 @@
 	import type { TaskStatus } from '$lib/types';
 
 	let prompt = $state('');
-	let imageData = $state('');
-	let imagePreview = $state('');
 	let glbBase64 = $state('');
 	let status: TaskStatus = $state('idle');
 	let errorMsg = $state('');
 	let currentTheme: Theme = $state('system');
-	let inputMode = $state('text');
 	let settingsOpen = $state(false);
 	let themeMenuOpen = $state(false);
 	let langMenuOpen = $state(false);
 	let lang: Lang = $state('de');
 	let sidebarOpen = $state(true);
+	let historyOpen = $state(false);
 	let generationStartTime = $state(0);
 	let elapsedTime = $state(0);
 	let timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -46,8 +44,16 @@
 	let ssSamplingSteps = $state(12);
 
 	const MAX_PROMPT_LENGTH = 512;
-
 	const VALID_LANGS = new Set<string>(LANGUAGES.map(l => l.code));
+
+	interface HistoryEntry {
+		id: string;
+		prompt: string;
+		timestamp: number;
+		format: string;
+		base64: string;
+	}
+	let history: HistoryEntry[] = $state([]);
 
 	const examplePrompts: { short: string; full: string }[] = [
 		{ short: 'A medieval battle axe with runes', full: 'A medieval battle axe with glowing Norse runes carved into the dark iron blade, a worn leather-wrapped handle, intricate engravings on the axe head, fantasy weapon style, detailed metal texture' },
@@ -61,12 +67,6 @@
 	const t: Record<Lang, Record<string, string>> = {
 		de: {
 			powered: 'Angetrieben von NVIDIA TRELLIS',
-			text: 'Text',
-			image: 'Bild',
-			both: 'Text + Bild',
-			imageWarning: 'Bilder funktionieren nur mit einem selbst-gehosteten NIM Server. Die gehostete NVIDIA API unterstützt nur vordefinierte Beispielbilder.',
-			imageUpload: 'Bild-Upload',
-			textPrompt: 'Text-Prompt',
 			placeholder: 'Beschreibe dein 3D-Modell...',
 			examples: 'Beispiel-Prompts',
 			generate: '3D-Modell generieren',
@@ -87,16 +87,15 @@
 			shortcut: 'Strg+Enter zum Generieren',
 			light: 'Hell',
 			dark: 'Dunkel',
-			system: 'System'
+			system: 'System',
+			history: 'Verlauf',
+			historyEmpty: 'Noch keine Modelle generiert.',
+			loadModel: 'Laden',
+			clearHistory: 'Verlauf löschen',
+			historyFull: 'Max. 20 Einträge. Älteste werden entfernt.'
 		},
 		en: {
 			powered: 'Powered by NVIDIA TRELLIS',
-			text: 'Text',
-			image: 'Image',
-			both: 'Text + Image',
-			imageWarning: 'Images only work with a self-hosted NIM server. The hosted NVIDIA API only supports predefined example images.',
-			imageUpload: 'Image Upload',
-			textPrompt: 'Text Prompt',
 			placeholder: 'Describe your 3D model...',
 			examples: 'Example Prompts',
 			generate: 'Generate 3D Model',
@@ -117,188 +116,19 @@
 			shortcut: 'Ctrl+Enter to generate',
 			light: 'Light',
 			dark: 'Dark',
-			system: 'System'
+			system: 'System',
+			history: 'History',
+			historyEmpty: 'No models generated yet.',
+			loadModel: 'Load',
+			clearHistory: 'Clear history',
+			historyFull: 'Max 20 entries. Oldest removed first.'
 		},
-		fr: {
-			powered: 'Propulsé par NVIDIA TRELLIS',
-			text: 'Texte',
-			image: 'Image',
-			both: 'Texte + Image',
-			imageWarning: 'Les images ne fonctionnent qu\'avec un serveur NIM auto-hébergé. L\'API NVIDIA hébergée ne prend en charge que les images d\'exemple prédéfinies.',
-			imageUpload: 'Télécharger une image',
-			textPrompt: 'Prompt texte',
-			placeholder: 'Décrivez votre modèle 3D...',
-			examples: 'Exemples de prompts',
-			generate: 'Générer le modèle 3D',
-			generating: 'Génération...',
-			genStarted: 'Génération démarrée...',
-			genStartedDesc: 'Environ 2-3 minutes',
-			genRunning: 'Le modèle est en cours de génération',
-			elapsed: 'écoulé',
-			remaining: 'restant',
-			genSuccess: 'Modèle 3D généré avec succès !',
-			duration: 'Durée',
-			genError: 'Échec de la génération',
-			unexpected: 'Réponse API inattendue',
-			unknownError: 'Erreur inconnue',
-			error: 'Erreur',
-			download: 'télécharger',
-			downloadStarted: 'Téléchargement démarré',
-			shortcut: 'Ctrl+Entrée pour générer',
-			light: 'Clair',
-			dark: 'Sombre',
-			system: 'Système'
-		},
-		es: {
-			powered: 'Impulsado por NVIDIA TRELLIS',
-			text: 'Texto',
-			image: 'Imagen',
-			both: 'Texto + Imagen',
-			imageWarning: 'Las imágenes solo funcionan con un servidor NIM autoalojado. La API alojada de NVIDIA solo admite imágenes de ejemplo predefinidas.',
-			imageUpload: 'Subir imagen',
-			textPrompt: 'Prompt de texto',
-			placeholder: 'Describe tu modelo 3D...',
-			examples: 'Prompts de ejemplo',
-			generate: 'Generar modelo 3D',
-			generating: 'Generando...',
-			genStarted: 'Generación iniciada...',
-			genStartedDesc: 'Aprox. 2-3 minutos',
-			genRunning: 'El modelo se está generando',
-			elapsed: 'transcurrido',
-			remaining: 'restante',
-			genSuccess: '¡Modelo 3D generado con éxito!',
-			duration: 'Duración',
-			genError: 'Error en la generación',
-			unexpected: 'Respuesta API inesperada',
-			unknownError: 'Error desconocido',
-			error: 'Error',
-			download: 'descargar',
-			downloadStarted: 'Descarga iniciada',
-			shortcut: 'Ctrl+Enter para generar',
-			light: 'Claro',
-			dark: 'Oscuro',
-			system: 'Sistema'
-		},
-		it: {
-			powered: 'Alimentato da NVIDIA TRELLIS',
-			text: 'Testo',
-			image: 'Immagine',
-			both: 'Testo + Immagine',
-			imageWarning: 'Le immagini funzionano solo con un server NIM self-hosted. L\'API NVIDIA ospitata supporta solo immagini di esempio predefinite.',
-			imageUpload: 'Carica immagine',
-			textPrompt: 'Prompt di testo',
-			placeholder: 'Descrivi il tuo modello 3D...',
-			examples: 'Prompt di esempio',
-			generate: 'Genera modello 3D',
-			generating: 'Generazione...',
-			genStarted: 'Generazione avviata...',
-			genStartedDesc: 'Circa 2-3 minuti',
-			genRunning: 'Il modello è in fase di generazione',
-			elapsed: 'trascorso',
-			remaining: 'rimanente',
-			genSuccess: 'Modello 3D generato con successo!',
-			duration: 'Durata',
-			genError: 'Generazione fallita',
-			unexpected: 'Risposta API imprevista',
-			unknownError: 'Errore sconosciuto',
-			error: 'Errore',
-			download: 'scarica',
-			downloadStarted: 'Download avviato',
-			shortcut: 'Ctrl+Invio per generare',
-			light: 'Chiaro',
-			dark: 'Scuro',
-			system: 'Sistema'
-		},
-		pt: {
-			powered: 'Desenvolvido por NVIDIA TRELLIS',
-			text: 'Texto',
-			image: 'Imagem',
-			both: 'Texto + Imagem',
-			imageWarning: 'As imagens só funcionam com um servidor NIM auto-hospedado. A API hospedada da NVIDIA suporta apenas imagens de exemplo predefinidas.',
-			imageUpload: 'Enviar imagem',
-			textPrompt: 'Prompt de texto',
-			placeholder: 'Descreva seu modelo 3D...',
-			examples: 'Prompts de exemplo',
-			generate: 'Gerar modelo 3D',
-			generating: 'Gerando...',
-			genStarted: 'Geração iniciada...',
-			genStartedDesc: 'Aprox. 2-3 minutos',
-			genRunning: 'O modelo está sendo gerado',
-			elapsed: 'decorrido',
-			remaining: 'restante',
-			genSuccess: 'Modelo 3D gerado com sucesso!',
-			duration: 'Duração',
-			genError: 'Falha na geração',
-			unexpected: 'Resposta inesperada da API',
-			unknownError: 'Erro desconhecido',
-			error: 'Erro',
-			download: 'baixar',
-			downloadStarted: 'Download iniciado',
-			shortcut: 'Ctrl+Enter para gerar',
-			light: 'Claro',
-			dark: 'Escuro',
-			system: 'Sistema'
-		},
-		ja: {
-			powered: 'NVIDIA TRELLIS 搭載',
-			text: 'テキスト',
-			image: '画像',
-			both: 'テキスト + 画像',
-			imageWarning: '画像は自己ホスト型NIMサーバーでのみ機能します。ホスト型NVIDIA APIは事前定義されたサンプル画像のみをサポートしています。',
-			imageUpload: '画像アップロード',
-			textPrompt: 'テキストプロンプト',
-			placeholder: '3Dモデルを説明してください...',
-			examples: 'プロンプト例',
-			generate: '3Dモデルを生成',
-			generating: '生成中...',
-			genStarted: '生成を開始しました...',
-			genStartedDesc: '約2-3分',
-			genRunning: 'モデルを生成中',
-			elapsed: '経過',
-			remaining: '残り',
-			genSuccess: '3Dモデルの生成に成功しました！',
-			duration: '所要時間',
-			genError: '生成に失敗しました',
-			unexpected: '予期しないAPIレスポンス',
-			unknownError: '不明なエラー',
-			error: 'エラー',
-			download: 'ダウンロード',
-			downloadStarted: 'ダウンロード開始',
-			shortcut: 'Ctrl+Enterで生成',
-			light: 'ライト',
-			dark: 'ダーク',
-			system: 'システム'
-		},
-		zh: {
-			powered: '由 NVIDIA TRELLIS 提供支持',
-			text: '文本',
-			image: '图像',
-			both: '文本 + 图像',
-			imageWarning: '图像仅在自托管NIM服务器上可用。托管的NVIDIA API仅支持预定义的示例图像。',
-			imageUpload: '上传图像',
-			textPrompt: '文本提示',
-			placeholder: '描述您的3D模型...',
-			examples: '示例提示',
-			generate: '生成3D模型',
-			generating: '生成中...',
-			genStarted: '生成已开始...',
-			genStartedDesc: '大约2-3分钟',
-			genRunning: '模型正在生成中',
-			elapsed: '已用',
-			remaining: '剩余',
-			genSuccess: '3D模型生成成功！',
-			duration: '用时',
-			genError: '生成失败',
-			unexpected: '意外的API响应',
-			unknownError: '未知错误',
-			error: '错误',
-			download: '下载',
-			downloadStarted: '下载已开始',
-			shortcut: 'Ctrl+Enter 生成',
-			light: '浅色',
-			dark: '深色',
-			system: '跟随系统'
-		}
+		fr: { powered: 'Propulsé par NVIDIA TRELLIS', placeholder: 'Décrivez votre modèle 3D...', examples: 'Exemples de prompts', generate: 'Générer le modèle 3D', generating: 'Génération...', genStarted: 'Génération démarrée...', genStartedDesc: 'Environ 2-3 minutes', genRunning: 'Le modèle est en cours de génération', elapsed: 'écoulé', remaining: 'restant', genSuccess: 'Modèle 3D généré avec succès !', duration: 'Durée', genError: 'Échec de la génération', unexpected: 'Réponse API inattendue', unknownError: 'Erreur inconnue', error: 'Erreur', download: 'télécharger', downloadStarted: 'Téléchargement démarré', shortcut: 'Ctrl+Entrée pour générer', light: 'Clair', dark: 'Sombre', system: 'Système', history: 'Historique', historyEmpty: 'Aucun modèle généré.', loadModel: 'Charger', clearHistory: 'Effacer', historyFull: 'Max 20 entrées.' },
+		es: { powered: 'Impulsado por NVIDIA TRELLIS', placeholder: 'Describe tu modelo 3D...', examples: 'Prompts de ejemplo', generate: 'Generar modelo 3D', generating: 'Generando...', genStarted: 'Generación iniciada...', genStartedDesc: 'Aprox. 2-3 minutos', genRunning: 'El modelo se está generando', elapsed: 'transcurrido', remaining: 'restante', genSuccess: '¡Modelo 3D generado con éxito!', duration: 'Duración', genError: 'Error en la generación', unexpected: 'Respuesta API inesperada', unknownError: 'Error desconocido', error: 'Error', download: 'descargar', downloadStarted: 'Descarga iniciada', shortcut: 'Ctrl+Enter para generar', light: 'Claro', dark: 'Oscuro', system: 'Sistema', history: 'Historial', historyEmpty: 'Sin modelos.', loadModel: 'Cargar', clearHistory: 'Limpiar', historyFull: 'Máx 20 entradas.' },
+		it: { powered: 'Alimentato da NVIDIA TRELLIS', placeholder: 'Descrivi il tuo modello 3D...', examples: 'Prompt di esempio', generate: 'Genera modello 3D', generating: 'Generazione...', genStarted: 'Generazione avviata...', genStartedDesc: 'Circa 2-3 minuti', genRunning: 'Il modello è in fase di generazione', elapsed: 'trascorso', remaining: 'rimanente', genSuccess: 'Modello 3D generato con successo!', duration: 'Durata', genError: 'Generazione fallita', unexpected: 'Risposta API imprevista', unknownError: 'Errore sconosciuto', error: 'Errore', download: 'scarica', downloadStarted: 'Download avviato', shortcut: 'Ctrl+Invio per generare', light: 'Chiaro', dark: 'Scuro', system: 'Sistema', history: 'Cronologia', historyEmpty: 'Nessun modello.', loadModel: 'Carica', clearHistory: 'Cancella', historyFull: 'Max 20 elementi.' },
+		pt: { powered: 'Desenvolvido por NVIDIA TRELLIS', placeholder: 'Descreva seu modelo 3D...', examples: 'Prompts de exemplo', generate: 'Gerar modelo 3D', generating: 'Gerando...', genStarted: 'Geração iniciada...', genStartedDesc: 'Aprox. 2-3 minutos', genRunning: 'O modelo está sendo gerado', elapsed: 'decorrido', remaining: 'restante', genSuccess: 'Modelo 3D gerado com sucesso!', duration: 'Duração', genError: 'Falha na geração', unexpected: 'Resposta inesperada da API', unknownError: 'Erro desconhecido', error: 'Erro', download: 'baixar', downloadStarted: 'Download iniciado', shortcut: 'Ctrl+Enter para gerar', light: 'Claro', dark: 'Escuro', system: 'Sistema', history: 'Histórico', historyEmpty: 'Nenhum modelo.', loadModel: 'Carregar', clearHistory: 'Limpar', historyFull: 'Máx 20 entradas.' },
+		ja: { powered: 'NVIDIA TRELLIS 搭載', placeholder: '3Dモデルを説明してください...', examples: 'プロンプト例', generate: '3Dモデルを生成', generating: '生成中...', genStarted: '生成を開始しました...', genStartedDesc: '約2-3分', genRunning: 'モデルを生成中', elapsed: '経過', remaining: '残り', genSuccess: '3Dモデルの生成に成功しました！', duration: '所要時間', genError: '生成に失敗しました', unexpected: '予期しないAPIレスポンス', unknownError: '不明なエラー', error: 'エラー', download: 'ダウンロード', downloadStarted: 'ダウンロード開始', shortcut: 'Ctrl+Enterで生成', light: 'ライト', dark: 'ダーク', system: 'システム', history: '履歴', historyEmpty: 'モデルなし。', loadModel: '読込', clearHistory: 'クリア', historyFull: '最大20件。' },
+		zh: { powered: '由 NVIDIA TRELLIS 提供支持', placeholder: '描述您的3D模型...', examples: '示例提示', generate: '生成3D模型', generating: '生成中...', genStarted: '生成已开始...', genStartedDesc: '大约2-3分钟', genRunning: '模型正在生成中', elapsed: '已用', remaining: '剩余', genSuccess: '3D模型生成成功！', duration: '用时', genError: '生成失败', unexpected: '意外的API响应', unknownError: '未知错误', error: '错误', download: '下载', downloadStarted: '下载已开始', shortcut: 'Ctrl+Enter 生成', light: '浅色', dark: '深色', system: '跟随系统', history: '历史', historyEmpty: '暂无模型。', loadModel: '加载', clearHistory: '清除', historyFull: '最多20条。' }
 	};
 
 	let resolvedTheme = $derived<'light' | 'dark'>(
@@ -308,27 +138,56 @@
 	);
 
 	let estimatedTimeLeft = $derived(
-		(status as string) === 'generating'
-			? Math.max(0, Math.round(180 - elapsedTime))
-			: 0
+		(status as string) === 'generating' ? Math.max(0, Math.round(180 - elapsedTime)) : 0
 	);
 
 	let progressPercent = $derived(
-		(status as string) === 'generating'
-			? Math.min(95, Math.round((elapsedTime / 180) * 100))
-			: 0
+		(status as string) === 'generating' ? Math.min(95, Math.round((elapsedTime / 180) * 100)) : 0
 	);
 
 	onMount(() => {
-		const unsubscribe = themeStore.subscribe((t) => {
-			currentTheme = t;
-		});
-
+		const unsubscribe = themeStore.subscribe((t) => { currentTheme = t; });
 		const stored = localStorage.getItem('lang');
 		if (stored && VALID_LANGS.has(stored)) lang = stored as Lang;
-
+		loadHistory();
 		return unsubscribe;
 	});
+
+	function loadHistory() {
+		try {
+			const raw = localStorage.getItem('model-history');
+			if (raw) history = JSON.parse(raw);
+		} catch { history = []; }
+	}
+
+	function saveToHistory(promptText: string, base64: string) {
+		const entry: HistoryEntry = {
+			id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+			prompt: promptText,
+			timestamp: Date.now(),
+			format: outputFormat,
+			base64
+		};
+		history = [entry, ...history].slice(0, 20);
+		try {
+			localStorage.setItem('model-history', JSON.stringify(history));
+		} catch {
+			while (history.length > 5) history.pop();
+			try { localStorage.setItem('model-history', JSON.stringify(history)); } catch {}
+		}
+	}
+
+	function loadFromHistory(entry: HistoryEntry) {
+		glbBase64 = entry.base64;
+		outputFormat = (entry.format as 'glb' | 'stl') || 'glb';
+		status = 'done';
+		historyOpen = false;
+	}
+
+	function clearHistory() {
+		history = [];
+		localStorage.removeItem('model-history');
+	}
 
 	function setTheme(theme: Theme) {
 		themeStore.set(theme);
@@ -356,35 +215,15 @@
 	}
 
 	function stopTimer() {
-		if (timerInterval) {
-			clearInterval(timerInterval);
-			timerInterval = null;
-		}
-	}
-
-	function switchMode(mode: string) {
-		inputMode = mode;
-		if (mode === 'text') {
-			imageData = '';
-			imagePreview = '';
-		}
+		if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 	}
 
 	function useExample(ep: { short: string; full: string }) {
 		prompt = ep.full;
-		inputMode = 'text';
 	}
 
 	async function generate() {
-		if (status === 'generating') return;
-
-		const isTextMode = inputMode === 'text';
-		const isImageMode = inputMode === 'image';
-		const isBothMode = inputMode === 'both';
-
-		if (isTextMode && !prompt.trim()) return;
-		if (isImageMode && !imageData) return;
-		if (isBothMode && !prompt.trim() && !imageData) return;
+		if (status === 'generating' || !prompt.trim()) return;
 
 		status = 'generating';
 		errorMsg = '';
@@ -394,6 +233,8 @@
 
 		try {
 			const body: Record<string, unknown> = {
+				prompt: prompt.trim(),
+				mode: 'text',
 				seed,
 				no_texture: noTexture,
 				output_format: outputFormat,
@@ -402,14 +243,6 @@
 				slat_sampling_steps: slatSamplingSteps,
 				ss_sampling_steps: ssSamplingSteps
 			};
-
-			if ((isImageMode || isBothMode) && imageData) {
-				body.image = imageData;
-				body.mode = 'image';
-			} else {
-				body.prompt = prompt.trim();
-				body.mode = 'text';
-			}
 
 			const res = await fetch('/api/generate', {
 				method: 'POST',
@@ -427,6 +260,7 @@
 				glbBase64 = data.artifacts[0].base64;
 				status = 'done';
 				stopTimer();
+				saveToHistory(prompt.trim(), glbBase64);
 				toast.success(t[lang].genSuccess, { description: `${t[lang].duration}: ${formatTime(elapsedTime)}` });
 			} else {
 				throw new Error(t[lang].unexpected);
@@ -443,9 +277,7 @@
 		if (!glbBase64) return;
 		const binary = atob(glbBase64);
 		const bytes = new Uint8Array(binary.length);
-		for (let i = 0; i < binary.length; i++) {
-			bytes[i] = binary.charCodeAt(i);
-		}
+		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 		const blob = new Blob([bytes], { type: 'model/gltf-binary' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
@@ -456,15 +288,8 @@
 		toast.success(t[lang].downloadStarted);
 	}
 
-	function canGenerate() {
-		if (status === 'generating') return false;
-		if (inputMode === 'text') return prompt.trim().length > 0;
-		if (inputMode === 'image') return !!imageData;
-		return prompt.trim().length > 0 || !!imageData;
-	}
-
 	function handleKeydown(e: KeyboardEvent) {
-		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && canGenerate()) {
+		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && status !== 'generating' && prompt.trim()) {
 			e.preventDefault();
 			generate();
 		}
@@ -480,32 +305,33 @@
 
 <svelte:head>
 	<title>3D Visualizer</title>
-	<meta name="description" content="Generate 3D models from text or images using NVIDIA TRELLIS" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+	<meta name="description" content="Generate 3D models from text using NVIDIA TRELLIS" />
 </svelte:head>
 
-<div class="flex h-screen flex-col overflow-hidden bg-background">
-	<header class="flex items-center justify-between border-b px-3 py-2 sm:px-6 sm:py-3 bg-card shrink-0">
-		<div class="flex items-center gap-2 sm:gap-3">
+<div class="flex h-dvh flex-col overflow-hidden bg-background">
+	<header class="flex items-center justify-between border-b px-2 py-2 sm:px-4 sm:py-2.5 bg-card shrink-0">
+		<div class="flex items-center gap-2">
 			<Button variant="ghost" size="icon" class="h-8 w-8 shrink-0 lg:hidden" onclick={() => sidebarOpen = !sidebarOpen}>
 				<Menu size={18} />
 			</Button>
-			<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-				<Box size={18} class="text-primary" />
+			<Button variant="ghost" size="icon" class="h-8 w-8 shrink-0 hidden lg:inline-flex" onclick={() => sidebarOpen = !sidebarOpen}>
+				<PanelLeft size={18} />
+			</Button>
+			<div class="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 shrink-0">
+				<Box size={15} class="text-primary" />
 			</div>
-			<div class="min-w-0">
-				<h1 class="text-sm sm:text-base font-semibold tracking-tight leading-none truncate">3D Visualizer</h1>
-				<p class="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate hidden sm:block">{t[lang].powered}</p>
-			</div>
+			<h1 class="text-sm font-semibold tracking-tight leading-none hidden sm:block">3D Visualizer</h1>
 		</div>
 		<div class="flex items-center gap-1">
-			<Badge variant="secondary" class="text-xs hidden sm:inline-flex">NVIDIA NIM</Badge>
+			<Badge variant="secondary" class="text-[10px] hidden md:inline-flex">NVIDIA NIM</Badge>
 
 			<div class="relative">
-				<Button variant="ghost" size="icon" onclick={(e) => { e.stopPropagation(); langMenuOpen = !langMenuOpen; themeMenuOpen = false; }}>
-					<Languages size={18} />
+				<Button variant="ghost" size="icon" class="h-8 w-8" onclick={(e) => { e.stopPropagation(); langMenuOpen = !langMenuOpen; themeMenuOpen = false; }}>
+					<Languages size={16} />
 				</Button>
 				{#if langMenuOpen}
-					<div class="absolute right-0 top-full mt-1 z-50 min-w-[160px] max-h-[320px] overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
+					<div class="absolute right-0 top-full mt-1 z-50 min-w-[140px] max-h-[280px] overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
 						{#each LANGUAGES as l}
 							<button
 								class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {lang === l.code ? 'font-medium' : ''}"
@@ -519,35 +345,22 @@
 			</div>
 
 			<div class="relative">
-				<Button variant="ghost" size="icon" onclick={(e) => { e.stopPropagation(); themeMenuOpen = !themeMenuOpen; langMenuOpen = false; }}>
-					{#if currentTheme === 'system'}
-						<Monitor size={18} />
-					{:else if resolvedTheme === 'dark'}
-						<Moon size={18} />
-					{:else}
-						<Sun size={18} />
-					{/if}
+				<Button variant="ghost" size="icon" class="h-8 w-8" onclick={(e) => { e.stopPropagation(); themeMenuOpen = !themeMenuOpen; langMenuOpen = false; }}>
+					{#if currentTheme === 'system'}<Monitor size={16} />
+					{:else if resolvedTheme === 'dark'}<Moon size={16} />
+					{:else}<Sun size={16} />{/if}
 				</Button>
 				{#if themeMenuOpen}
-					<div class="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
-						<button
-							class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {currentTheme === 'light' ? 'font-medium' : ''}"
-							onclick={(e) => { e.stopPropagation(); setTheme('light'); }}
-						>
-							<Sun size={16} /> {t[lang].light}
+					<div class="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
+						<button class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {currentTheme === 'light' ? 'font-medium' : ''}" onclick={(e) => { e.stopPropagation(); setTheme('light'); }}>
+							<Sun size={14} /> {t[lang].light}
 						</button>
-						<button
-							class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {currentTheme === 'dark' ? 'font-medium' : ''}"
-							onclick={(e) => { e.stopPropagation(); setTheme('dark'); }}
-						>
-							<Moon size={16} /> {t[lang].dark}
+						<button class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {currentTheme === 'dark' ? 'font-medium' : ''}" onclick={(e) => { e.stopPropagation(); setTheme('dark'); }}>
+							<Moon size={14} /> {t[lang].dark}
 						</button>
 						<div class="-mx-1 my-1 h-px bg-muted"></div>
-						<button
-							class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {currentTheme === 'system' ? 'font-medium' : ''}"
-							onclick={(e) => { e.stopPropagation(); setTheme('system'); }}
-						>
-							<Monitor size={16} /> {t[lang].system}
+						<button class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {currentTheme === 'system' ? 'font-medium' : ''}" onclick={(e) => { e.stopPropagation(); setTheme('system'); }}>
+							<Monitor size={14} /> {t[lang].system}
 						</button>
 					</div>
 				{/if}
@@ -560,72 +373,30 @@
 			<div class="fixed inset-0 bg-black/50 z-30 lg:hidden" onclick={() => sidebarOpen = false} role="presentation"></div>
 		{/if}
 		<aside
-			class="fixed inset-y-0 left-0 z-40 flex flex-col w-[85vw] max-w-[420px] border-r bg-background transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:w-[420px] lg:min-w-[420px] lg:max-w-[420px] lg:z-auto {sidebarOpen ? 'translate-x-0' : '-translate-x-full'}"
+			class="fixed inset-y-0 left-0 z-40 flex flex-col w-[85vw] max-w-[400px] border-r bg-background transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:w-[400px] lg:min-w-[400px] lg:max-w-[400px] lg:z-auto {sidebarOpen ? 'translate-x-0' : '-translate-x-full'}"
 		>
-			<div class="flex items-center justify-between p-4 border-b shrink-0">
-				<div class="flex items-center gap-2">
-					<div class="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
-						<Box size={14} class="text-primary" />
-					</div>
-					<span class="text-sm font-medium">3D Visualizer</span>
-				</div>
-				<div class="flex items-center gap-1">
-					<Button variant="ghost" size="icon" class="h-7 w-7 hidden lg:flex" onclick={() => sidebarOpen = false} title="Collapse">
-						<PanelLeft size={16} />
-					</Button>
-					<Button variant="ghost" size="icon" class="h-7 w-7 lg:hidden" onclick={() => sidebarOpen = false}>
-						<X size={16} />
-					</Button>
-				</div>
+			<div class="flex items-center justify-between px-4 py-3 border-b shrink-0">
+				<span class="text-sm font-medium">3D Visualizer</span>
+				<Button variant="ghost" size="icon" class="h-7 w-7 lg:hidden" onclick={() => sidebarOpen = false}>
+					<X size={16} />
+				</Button>
 			</div>
 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
-			<div class="flex gap-0 border-b">
-					{#each [["text", t[lang].text], ["image", t[lang].image], ["both", t[lang].both]] as [val, label]}
-						<button
-							class="flex-1 pb-2.5 pt-1 text-sm font-medium text-center border-b-2 transition-colors {inputMode === val ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}"
-							onclick={() => switchMode(val)}
-						>
-							{label}
-						</button>
-					{/each}
-				</div>
-
-				{#if inputMode === 'image' || inputMode === 'both'}
-					{#if inputMode === 'image'}
-						<div class="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-							<Info size={16} class="text-amber-500 shrink-0 mt-0.5" />
-							<p class="text-xs text-muted-foreground">{t[lang].imageWarning}</p>
-						</div>
-					{/if}
-					<Card>
-						<CardHeader class="pb-3">
-							<CardTitle class="text-sm">{t[lang].imageUpload}</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<ImageUpload bind:imageData bind:imagePreview {lang} />
-						</CardContent>
-					</Card>
-				{/if}
-
-				{#if inputMode === 'text' || inputMode === 'both'}
-					<Card>
-						<CardHeader class="pb-3">
-							<CardTitle class="text-sm">{t[lang].textPrompt}</CardTitle>
-						</CardHeader>
-						<CardContent class="space-y-3">
-							<Textarea
-								bind:value={prompt}
-								placeholder={t[lang].placeholder}
-								maxlength={MAX_PROMPT_LENGTH}
-								rows={inputMode === 'both' ? 3 : 4}
-								class="resize-none"
-							/>
-							<div class="flex items-center justify-between">
-								<span class="text-xs text-muted-foreground">{prompt.length}/{MAX_PROMPT_LENGTH}</span>
-							</div>
-						</CardContent>
-					</Card>
-				{/if}
+				<Card>
+					<CardHeader class="pb-3">
+						<CardTitle class="text-sm">{t[lang].placeholder}</CardTitle>
+					</CardHeader>
+					<CardContent class="space-y-3">
+						<Textarea
+							bind:value={prompt}
+							placeholder={t[lang].placeholder}
+							maxlength={MAX_PROMPT_LENGTH}
+							rows={4}
+							class="resize-none"
+						/>
+						<span class="text-xs text-muted-foreground">{prompt.length}/{MAX_PROMPT_LENGTH}</span>
+					</CardContent>
+				</Card>
 
 				<div>
 					<Label class="text-xs text-muted-foreground mb-2 block">{t[lang].examples}</Label>
@@ -653,12 +424,7 @@
 					{lang}
 				/>
 
-				<Button
-					onclick={generate}
-					disabled={!canGenerate()}
-					class="w-full shrink-0"
-					size="lg"
-				>
+				<Button onclick={generate} disabled={status === 'generating' || !prompt.trim()} class="w-full shrink-0" size="lg">
 					{#if status === 'generating'}
 						<Loader2 size={18} class="mr-2 animate-spin" />
 						{t[lang].generating}
@@ -673,16 +439,11 @@
 						<CardContent class="p-4 space-y-3">
 							<div class="flex items-center gap-3">
 								<Loader2 size={20} class="animate-spin text-primary shrink-0" />
-								<div class="flex-1 min-w-0">
-									<p class="text-sm font-medium">{t[lang].genRunning}</p>
-								</div>
+								<p class="text-sm font-medium">{t[lang].genRunning}</p>
 							</div>
 							<Progress value={progressPercent} class="h-1.5" />
 							<div class="flex items-center justify-between text-xs text-muted-foreground">
-								<span class="flex items-center gap-1">
-									<Timer size={12} />
-									{formatTime(elapsedTime)} {t[lang].elapsed}
-								</span>
+								<span class="flex items-center gap-1"><Timer size={12} /> {formatTime(elapsedTime)} {t[lang].elapsed}</span>
 								<span>~{formatTime(estimatedTimeLeft)} {t[lang].remaining}</span>
 							</div>
 						</CardContent>
@@ -707,13 +468,46 @@
 				{/if}
 
 				<Separator />
-				<p class="text-xs text-muted-foreground text-center pb-2 shrink-0">
-					{t[lang].shortcut}
-				</p>
+
+				<div>
+					<button
+						class="flex w-full items-center justify-between py-2 text-sm font-medium"
+						onclick={() => historyOpen = !historyOpen}
+					>
+						<span class="flex items-center gap-2"><History size={14} /> {t[lang].history}</span>
+						<Badge variant="secondary" class="text-[10px]">{history.length}/20</Badge>
+					</button>
+					{#if historyOpen}
+						<div class="space-y-2 mt-2">
+							{#if history.length === 0}
+								<p class="text-xs text-muted-foreground py-4 text-center">{t[lang].historyEmpty}</p>
+							{:else}
+								<div class="flex justify-end">
+									<Button variant="ghost" size="sm" class="h-6 text-xs gap-1 text-destructive" onclick={clearHistory}>
+										<Trash2 size={12} /> {t[lang].clearHistory}
+									</Button>
+								</div>
+								{#each history as entry (entry.id)}
+									<div class="flex items-center gap-2 rounded-lg border p-2">
+										<div class="flex-1 min-w-0">
+											<p class="text-xs truncate">{entry.prompt}</p>
+											<p class="text-[10px] text-muted-foreground">{new Date(entry.timestamp).toLocaleString()}</p>
+										</div>
+										<Button variant="secondary" size="sm" class="h-6 text-[10px] shrink-0" onclick={() => loadFromHistory(entry)}>
+											{t[lang].loadModel}
+										</Button>
+									</div>
+								{/each}
+							{/if}
+						</div>
+					{/if}
+				</div>
+
+				<p class="text-xs text-muted-foreground text-center pb-1 shrink-0">{t[lang].shortcut}</p>
 			</div>
 		</aside>
 
-		<section class="flex-1 p-3 sm:p-5 min-w-0">
+		<section class="flex-1 p-2 sm:p-4 min-w-0">
 			<div class="h-full">
 				<ModelViewer bind:glbBase64 {lang} />
 			</div>

@@ -21,7 +21,7 @@ export function createViewer(container: HTMLElement): {
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
-	renderer.toneMappingExposure = 1.0;
+	renderer.toneMappingExposure = 1.3;
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 	container.appendChild(renderer.domElement);
@@ -34,10 +34,27 @@ export function createViewer(container: HTMLElement): {
 	controls.maxDistance = 20;
 	controls.target.set(0, 0, 0);
 
-	const ambientLight = new THREE.AmbientLight(0x404060, 0.3);
+	const pmremGenerator = new THREE.PMREMGenerator(renderer);
+	pmremGenerator.compileEquirectangularShader();
+	const envScene = new THREE.Scene();
+	const envLight1 = new THREE.DirectionalLight(0xffffff, 2);
+	envLight1.position.set(1, 1, 1);
+	envScene.add(envLight1);
+	const envLight2 = new THREE.DirectionalLight(0xfff5e0, 1.5);
+	envLight2.position.set(-1, 0.5, -1);
+	envScene.add(envLight2);
+	const envLight3 = new THREE.DirectionalLight(0x87ceeb, 0.8);
+	envLight3.position.set(0, -1, 0);
+	envScene.add(envLight3);
+	envScene.background = new THREE.Color(0x303040);
+	const envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
+	scene.environment = envMap;
+	pmremGenerator.dispose();
+
+	const ambientLight = new THREE.AmbientLight(0x404060, 0.4);
 	scene.add(ambientLight);
 
-	const sunLight = new THREE.DirectionalLight(0xfff5e0, 2.5);
+	const sunLight = new THREE.DirectionalLight(0xfff5e0, 4);
 	sunLight.position.set(5, 8, 5);
 	sunLight.castShadow = true;
 	sunLight.shadow.mapSize.width = 2048;
@@ -63,21 +80,21 @@ export function createViewer(container: HTMLElement): {
 	sunGroup.add(sunSphere);
 
 	const sunGlow = new THREE.Mesh(
-		new THREE.SphereGeometry(0.5, 32, 32),
+		new THREE.SphereGeometry(0.55, 32, 32),
 		new THREE.MeshBasicMaterial({
-			color: 0xffaa00,
+			color: 0xffbb22,
 			transparent: true,
-			opacity: 0.2
+			opacity: 0.35
 		})
 	);
 	sunGroup.add(sunGlow);
 
 	const sunRays = new THREE.Mesh(
-		new THREE.SphereGeometry(0.7, 32, 32),
+		new THREE.SphereGeometry(0.8, 32, 32),
 		new THREE.MeshBasicMaterial({
-			color: 0xffcc00,
+			color: 0xffdd33,
 			transparent: true,
-			opacity: 0.08
+			opacity: 0.15
 		})
 	);
 	sunGroup.add(sunRays);
@@ -134,6 +151,31 @@ export function createViewer(container: HTMLElement): {
 		sunGroup.scale.setScalar(sunScale);
 	}
 
+	function enhanceMaterials(object: THREE.Object3D) {
+		object.traverse((child) => {
+			if (child instanceof THREE.Mesh) {
+				child.castShadow = true;
+				child.receiveShadow = true;
+				if (child.material) {
+					const mats = Array.isArray(child.material) ? child.material : [child.material];
+					mats.forEach((mat) => {
+						if ('envMap' in mat) {
+							mat.envMap = envMap;
+							mat.envMapIntensity = 1.2;
+							mat.needsUpdate = true;
+						}
+						if ('metalness' in mat) {
+							mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.1);
+						}
+						if ('roughness' in mat) {
+							mat.roughness = Math.max(0.15, (mat.roughness ?? 0.5) - 0.1);
+						}
+					});
+				}
+			}
+		});
+	}
+
 	function loadGlb(base64: string) {
 		removeCurrentModel();
 
@@ -149,12 +191,7 @@ export function createViewer(container: HTMLElement): {
 			url,
 			(gltf) => {
 				currentModel = gltf.scene;
-				currentModel.traverse((child) => {
-					if (child instanceof THREE.Mesh) {
-						child.castShadow = true;
-						child.receiveShadow = true;
-					}
-				});
+				enhanceMaterials(currentModel);
 				scene.add(currentModel);
 				fitCameraToModel(currentModel);
 				URL.revokeObjectURL(url);
@@ -173,12 +210,7 @@ export function createViewer(container: HTMLElement): {
 			url,
 			(gltf) => {
 				currentModel = gltf.scene;
-				currentModel.traverse((child) => {
-					if (child instanceof THREE.Mesh) {
-						child.castShadow = true;
-						child.receiveShadow = true;
-					}
-				});
+				enhanceMaterials(currentModel);
 				scene.add(currentModel);
 				fitCameraToModel(currentModel);
 			},

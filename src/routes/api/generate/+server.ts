@@ -17,32 +17,26 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { prompt, image, mode, seed, no_texture, output_format, slat_cfg_scale, ss_cfg_scale, slat_sampling_steps, ss_sampling_steps } = body;
+	const { prompt, seed, no_texture, output_format, slat_cfg_scale, ss_cfg_scale, slat_sampling_steps, ss_sampling_steps } = body;
 
-	if (!prompt && !image) {
-		return json({ error: 'Entweder Text oder Bild wird benoetigt' }, { status: 400 });
+	if (!prompt) {
+		return json({ error: 'Prompt is required' }, { status: 400 });
 	}
 
-	const payload: Record<string, unknown> = {};
+	const payload: Record<string, unknown> = {
+		mode: 'text',
+		prompt: String(prompt),
+		output_format: output_format === 'stl' ? 'stl' : 'glb'
+	};
 
-	if (mode === 'image' && image) {
-		payload.mode = 'image';
-		payload.image = image;
-	} else {
-		payload.mode = 'text';
-		if (prompt) payload.prompt = String(prompt);
-	}
-
-	if (seed !== undefined && seed !== null && seed !== 0) payload.seed = seed;
+	if (seed !== undefined && seed !== null && seed !== 0) payload.seed = Number(seed);
 	if (no_texture === true) payload.no_texture = true;
-	if (output_format === 'stl') payload.output_format = 'stl';
-	else payload.output_format = 'glb';
-	if (slat_cfg_scale !== undefined && slat_cfg_scale !== null) payload.slat_cfg_scale = Number(slat_cfg_scale);
-	if (ss_cfg_scale !== undefined && ss_cfg_scale !== null) payload.ss_cfg_scale = Number(ss_cfg_scale);
-	if (slat_sampling_steps !== undefined && slat_sampling_steps !== null) payload.slat_sampling_steps = Number(slat_sampling_steps);
-	if (ss_sampling_steps !== undefined && ss_sampling_steps !== null) payload.ss_sampling_steps = Number(ss_sampling_steps);
+	if (slat_cfg_scale !== undefined && slat_cfg_scale !== null && slat_cfg_scale !== 3) payload.slat_cfg_scale = Number(slat_cfg_scale);
+	if (ss_cfg_scale !== undefined && ss_cfg_scale !== null && ss_cfg_scale !== 7.5) payload.ss_cfg_scale = Number(ss_cfg_scale);
+	if (slat_sampling_steps !== undefined && slat_sampling_steps !== null && slat_sampling_steps !== 12) payload.slat_sampling_steps = Number(slat_sampling_steps);
+	if (ss_sampling_steps !== undefined && ss_sampling_steps !== null && ss_sampling_steps !== 12) payload.ss_sampling_steps = Number(ss_sampling_steps);
 
-	console.log('NVIDIA API request:', JSON.stringify({ url: apiUrl, mode: payload.mode, hasPrompt: !!payload.prompt, hasImage: !!payload.image, prompt: payload.prompt }));
+	console.log('NVIDIA API request:', JSON.stringify({ url: apiUrl, mode: payload.mode, prompt: payload.prompt, extraKeys: Object.keys(payload).filter(k => !['mode', 'prompt', 'output_format'].includes(k)) }));
 
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 300000);

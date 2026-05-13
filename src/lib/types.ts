@@ -1,7 +1,5 @@
 export interface GenerateRequest {
-	prompt?: string;
-	image?: string;
-	mode?: 'text' | 'image';
+	prompt: string;
 	seed?: number;
 	no_texture?: boolean;
 	output_format?: 'glb' | 'stl';
@@ -21,4 +19,4 @@ export interface GenerateResponse {
 	};
 }
 
-export type TaskStatus = 'idle' | 'uploading' | 'generating' | 'done' | 'error';
+export type TaskStatus = 'idle' | 'generating' | 'done' | 'error';
