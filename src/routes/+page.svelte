@@ -3,7 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import {
 		Loader2, Sparkles, Download, AlertCircle, Box,
-		Sun, Moon, Monitor, Timer, Info, Languages
+		Sun, Moon, Monitor, Timer, Info, Languages, PanelLeftClose, PanelLeftOpen
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -32,6 +32,7 @@
 	let themeMenuOpen = $state(false);
 	let langMenuOpen = $state(false);
 	let lang: Lang = $state('de');
+	let sidebarOpen = $state(true);
 	let generationStartTime = $state(0);
 	let elapsedTime = $state(0);
 	let timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -551,10 +552,22 @@
 		</div>
 	</header>
 
-	<main class="flex flex-1 overflow-hidden">
-		<div class="flex w-full flex-col lg:flex-row">
-			<div class="flex w-full flex-col gap-4 overflow-y-auto border-r p-5 lg:w-[420px] lg:min-w-[420px] lg:max-w-[420px]">
-				<div class="flex gap-0 border-b">
+	<main class="flex flex-1 overflow-hidden relative">
+		{#if sidebarOpen}
+			<div class="absolute inset-0 bg-black/40 z-20 lg:hidden" onclick={() => sidebarOpen = false} role="presentation"></div>
+		{/if}
+		<div
+			class="flex flex-col gap-4 overflow-y-auto border-r p-5 w-[420px] min-w-[420px] max-w-[420px] shrink-0 z-30 bg-background transition-transform duration-300
+				{sidebarOpen ? 'translate-x-0' : '-translate-x-full absolute -left-[420px]'}
+				max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:top-0 max-lg:bottom-0 max-lg:h-full"
+		>
+			<div class="flex items-center justify-between">
+				<span class="text-xs text-muted-foreground uppercase tracking-wider font-medium">3D Visualizer</span>
+				<Button variant="ghost" size="icon" class="h-7 w-7 lg:hidden" onclick={() => sidebarOpen = false}>
+					<PanelLeftClose size={16} />
+				</Button>
+			</div>
+			<div class="flex gap-0 border-b">
 					{#each [["text", t[lang].text], ["image", t[lang].image], ["both", t[lang].both]] as [val, label]}
 						<button
 							class="flex-1 pb-2.5 pt-1 text-sm font-medium text-center border-b-2 transition-colors {inputMode === val ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}"
@@ -685,8 +698,24 @@
 				<p class="text-xs text-muted-foreground text-center pb-2 shrink-0">
 					{t[lang].shortcut}
 				</p>
-			</div>
+		</div>
 
+		<div class="flex-1 flex flex-col">
+			<div class="flex items-center gap-2 p-3 border-b shrink-0 lg:justify-end">
+				<Button
+					variant="ghost"
+					size="sm"
+					class="gap-2"
+					onclick={() => sidebarOpen = !sidebarOpen}
+				>
+					{#if sidebarOpen}
+						<PanelLeftClose size={16} />
+					{:else}
+						<PanelLeftOpen size={16} />
+					{/if}
+					<span class="hidden sm:inline text-xs">{sidebarOpen ? '' : ''}</span>
+				</Button>
+			</div>
 			<div class="flex-1 p-5">
 				<div class="h-full">
 					<ModelViewer bind:glbBase64 {lang} />
