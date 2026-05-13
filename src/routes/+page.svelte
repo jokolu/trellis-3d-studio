@@ -3,7 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import {
 		Loader2, Sparkles, Download, AlertCircle, Box,
-		Sun, Moon, Monitor, Timer, Info, Languages, PanelLeftClose, PanelLeftOpen
+		Sun, Moon, Monitor, Timer, Info, Languages, PanelLeft, X, Menu
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -484,18 +484,21 @@
 </svelte:head>
 
 <div class="flex h-screen flex-col overflow-hidden bg-background">
-	<header class="flex items-center justify-between border-b px-6 py-3 bg-card shrink-0">
-		<div class="flex items-center gap-3">
-			<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+	<header class="flex items-center justify-between border-b px-3 py-2 sm:px-6 sm:py-3 bg-card shrink-0">
+		<div class="flex items-center gap-2 sm:gap-3">
+			<Button variant="ghost" size="icon" class="h-8 w-8 shrink-0 lg:hidden" onclick={() => sidebarOpen = !sidebarOpen}>
+				<Menu size={18} />
+			</Button>
+			<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
 				<Box size={18} class="text-primary" />
 			</div>
-			<div>
-				<h1 class="text-base font-semibold tracking-tight leading-none">3D Visualizer</h1>
-				<p class="text-xs text-muted-foreground mt-0.5">{t[lang].powered}</p>
+			<div class="min-w-0">
+				<h1 class="text-sm sm:text-base font-semibold tracking-tight leading-none truncate">3D Visualizer</h1>
+				<p class="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate hidden sm:block">{t[lang].powered}</p>
 			</div>
 		</div>
 		<div class="flex items-center gap-1">
-			<Badge variant="secondary" class="text-xs">NVIDIA NIM</Badge>
+			<Badge variant="secondary" class="text-xs hidden sm:inline-flex">NVIDIA NIM</Badge>
 
 			<div class="relative">
 				<Button variant="ghost" size="icon" onclick={(e) => { e.stopPropagation(); langMenuOpen = !langMenuOpen; themeMenuOpen = false; }}>
@@ -552,21 +555,30 @@
 		</div>
 	</header>
 
-	<main class="flex flex-1 overflow-hidden relative">
+	<main class="flex flex-1 overflow-hidden">
 		{#if sidebarOpen}
-			<div class="absolute inset-0 bg-black/40 z-20 lg:hidden" onclick={() => sidebarOpen = false} role="presentation"></div>
+			<div class="fixed inset-0 bg-black/50 z-30 lg:hidden" onclick={() => sidebarOpen = false} role="presentation"></div>
 		{/if}
-		<div
-			class="flex flex-col gap-4 overflow-y-auto border-r p-5 w-[420px] min-w-[420px] max-w-[420px] shrink-0 z-30 bg-background transition-transform duration-300
-				{sidebarOpen ? 'translate-x-0' : '-translate-x-full absolute -left-[420px]'}
-				max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:top-0 max-lg:bottom-0 max-lg:h-full"
+		<aside
+			class="fixed inset-y-0 left-0 z-40 flex flex-col w-[85vw] max-w-[420px] border-r bg-background transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:w-[420px] lg:min-w-[420px] lg:max-w-[420px] lg:z-auto {sidebarOpen ? 'translate-x-0' : '-translate-x-full'}"
 		>
-			<div class="flex items-center justify-between">
-				<span class="text-xs text-muted-foreground uppercase tracking-wider font-medium">3D Visualizer</span>
-				<Button variant="ghost" size="icon" class="h-7 w-7 lg:hidden" onclick={() => sidebarOpen = false}>
-					<PanelLeftClose size={16} />
-				</Button>
+			<div class="flex items-center justify-between p-4 border-b shrink-0">
+				<div class="flex items-center gap-2">
+					<div class="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+						<Box size={14} class="text-primary" />
+					</div>
+					<span class="text-sm font-medium">3D Visualizer</span>
+				</div>
+				<div class="flex items-center gap-1">
+					<Button variant="ghost" size="icon" class="h-7 w-7 hidden lg:flex" onclick={() => sidebarOpen = false} title="Collapse">
+						<PanelLeft size={16} />
+					</Button>
+					<Button variant="ghost" size="icon" class="h-7 w-7 lg:hidden" onclick={() => sidebarOpen = false}>
+						<X size={16} />
+					</Button>
+				</div>
 			</div>
+			<div class="flex-1 overflow-y-auto p-4 space-y-4">
 			<div class="flex gap-0 border-b">
 					{#each [["text", t[lang].text], ["image", t[lang].image], ["both", t[lang].both]] as [val, label]}
 						<button
@@ -698,29 +710,13 @@
 				<p class="text-xs text-muted-foreground text-center pb-2 shrink-0">
 					{t[lang].shortcut}
 				</p>
-		</div>
+			</div>
+		</aside>
 
-		<div class="flex-1 flex flex-col">
-			<div class="flex items-center gap-2 p-3 border-b shrink-0 lg:justify-end">
-				<Button
-					variant="ghost"
-					size="sm"
-					class="gap-2"
-					onclick={() => sidebarOpen = !sidebarOpen}
-				>
-					{#if sidebarOpen}
-						<PanelLeftClose size={16} />
-					{:else}
-						<PanelLeftOpen size={16} />
-					{/if}
-					<span class="hidden sm:inline text-xs">{sidebarOpen ? '' : ''}</span>
-				</Button>
+		<section class="flex-1 p-3 sm:p-5 min-w-0">
+			<div class="h-full">
+				<ModelViewer bind:glbBase64 {lang} />
 			</div>
-			<div class="flex-1 p-5">
-				<div class="h-full">
-					<ModelViewer bind:glbBase64 {lang} />
-				</div>
-			</div>
-		</div>
+		</section>
 	</main>
 </div>
