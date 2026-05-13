@@ -4,14 +4,13 @@
 	import {
 		Loader2, Sparkles, Download, AlertCircle, Box,
 		Sun, Moon, Monitor, Timer, Languages, PanelLeft, X, Menu,
-		History, Trash2
+		History, Trash2, MessageSquare
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
-	import { Separator } from '$lib/components/ui/separator';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import ModelViewer from '$lib/components/ModelViewer.svelte';
@@ -29,8 +28,8 @@
 	let themeMenuOpen = $state(false);
 	let langMenuOpen = $state(false);
 	let lang: Lang = $state('de');
-	let sidebarOpen = $state(true);
-	let historyOpen = $state(false);
+	let sidebarOpen = $state(false);
+	let activeTab: 'text' | 'history' = $state('text');
 	let generationStartTime = $state(0);
 	let elapsedTime = $state(0);
 	let timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -92,7 +91,9 @@
 			historyEmpty: 'Noch keine Modelle generiert.',
 			loadModel: 'Laden',
 			clearHistory: 'Verlauf löschen',
-			historyFull: 'Max. 20 Einträge. Älteste werden entfernt.'
+			historyFull: 'Max. 20 Einträge. Älteste werden entfernt.',
+			tabText: 'Text',
+			tabHistory: 'Verlauf'
 		},
 		en: {
 			powered: 'Powered by NVIDIA TRELLIS',
@@ -121,14 +122,16 @@
 			historyEmpty: 'No models generated yet.',
 			loadModel: 'Load',
 			clearHistory: 'Clear history',
-			historyFull: 'Max 20 entries. Oldest removed first.'
+			historyFull: 'Max 20 entries. Oldest removed first.',
+			tabText: 'Text',
+			tabHistory: 'History'
 		},
-		fr: { powered: 'Propulsé par NVIDIA TRELLIS', placeholder: 'Décrivez votre modèle 3D...', examples: 'Exemples de prompts', generate: 'Générer le modèle 3D', generating: 'Génération...', genStarted: 'Génération démarrée...', genStartedDesc: 'Environ 2-3 minutes', genRunning: 'Le modèle est en cours de génération', elapsed: 'écoulé', remaining: 'restant', genSuccess: 'Modèle 3D généré avec succès !', duration: 'Durée', genError: 'Échec de la génération', unexpected: 'Réponse API inattendue', unknownError: 'Erreur inconnue', error: 'Erreur', download: 'télécharger', downloadStarted: 'Téléchargement démarré', shortcut: 'Ctrl+Entrée pour générer', light: 'Clair', dark: 'Sombre', system: 'Système', history: 'Historique', historyEmpty: 'Aucun modèle généré.', loadModel: 'Charger', clearHistory: 'Effacer', historyFull: 'Max 20 entrées.' },
-		es: { powered: 'Impulsado por NVIDIA TRELLIS', placeholder: 'Describe tu modelo 3D...', examples: 'Prompts de ejemplo', generate: 'Generar modelo 3D', generating: 'Generando...', genStarted: 'Generación iniciada...', genStartedDesc: 'Aprox. 2-3 minutos', genRunning: 'El modelo se está generando', elapsed: 'transcurrido', remaining: 'restante', genSuccess: '¡Modelo 3D generado con éxito!', duration: 'Duración', genError: 'Error en la generación', unexpected: 'Respuesta API inesperada', unknownError: 'Error desconocido', error: 'Error', download: 'descargar', downloadStarted: 'Descarga iniciada', shortcut: 'Ctrl+Enter para generar', light: 'Claro', dark: 'Oscuro', system: 'Sistema', history: 'Historial', historyEmpty: 'Sin modelos.', loadModel: 'Cargar', clearHistory: 'Limpiar', historyFull: 'Máx 20 entradas.' },
-		it: { powered: 'Alimentato da NVIDIA TRELLIS', placeholder: 'Descrivi il tuo modello 3D...', examples: 'Prompt di esempio', generate: 'Genera modello 3D', generating: 'Generazione...', genStarted: 'Generazione avviata...', genStartedDesc: 'Circa 2-3 minuti', genRunning: 'Il modello è in fase di generazione', elapsed: 'trascorso', remaining: 'rimanente', genSuccess: 'Modello 3D generato con successo!', duration: 'Durata', genError: 'Generazione fallita', unexpected: 'Risposta API imprevista', unknownError: 'Errore sconosciuto', error: 'Errore', download: 'scarica', downloadStarted: 'Download avviato', shortcut: 'Ctrl+Invio per generare', light: 'Chiaro', dark: 'Scuro', system: 'Sistema', history: 'Cronologia', historyEmpty: 'Nessun modello.', loadModel: 'Carica', clearHistory: 'Cancella', historyFull: 'Max 20 elementi.' },
-		pt: { powered: 'Desenvolvido por NVIDIA TRELLIS', placeholder: 'Descreva seu modelo 3D...', examples: 'Prompts de exemplo', generate: 'Gerar modelo 3D', generating: 'Gerando...', genStarted: 'Geração iniciada...', genStartedDesc: 'Aprox. 2-3 minutos', genRunning: 'O modelo está sendo gerado', elapsed: 'decorrido', remaining: 'restante', genSuccess: 'Modelo 3D gerado com sucesso!', duration: 'Duração', genError: 'Falha na geração', unexpected: 'Resposta inesperada da API', unknownError: 'Erro desconhecido', error: 'Erro', download: 'baixar', downloadStarted: 'Download iniciado', shortcut: 'Ctrl+Enter para gerar', light: 'Claro', dark: 'Escuro', system: 'Sistema', history: 'Histórico', historyEmpty: 'Nenhum modelo.', loadModel: 'Carregar', clearHistory: 'Limpar', historyFull: 'Máx 20 entradas.' },
-		ja: { powered: 'NVIDIA TRELLIS 搭載', placeholder: '3Dモデルを説明してください...', examples: 'プロンプト例', generate: '3Dモデルを生成', generating: '生成中...', genStarted: '生成を開始しました...', genStartedDesc: '約2-3分', genRunning: 'モデルを生成中', elapsed: '経過', remaining: '残り', genSuccess: '3Dモデルの生成に成功しました！', duration: '所要時間', genError: '生成に失敗しました', unexpected: '予期しないAPIレスポンス', unknownError: '不明なエラー', error: 'エラー', download: 'ダウンロード', downloadStarted: 'ダウンロード開始', shortcut: 'Ctrl+Enterで生成', light: 'ライト', dark: 'ダーク', system: 'システム', history: '履歴', historyEmpty: 'モデルなし。', loadModel: '読込', clearHistory: 'クリア', historyFull: '最大20件。' },
-		zh: { powered: '由 NVIDIA TRELLIS 提供支持', placeholder: '描述您的3D模型...', examples: '示例提示', generate: '生成3D模型', generating: '生成中...', genStarted: '生成已开始...', genStartedDesc: '大约2-3分钟', genRunning: '模型正在生成中', elapsed: '已用', remaining: '剩余', genSuccess: '3D模型生成成功！', duration: '用时', genError: '生成失败', unexpected: '意外的API响应', unknownError: '未知错误', error: '错误', download: '下载', downloadStarted: '下载已开始', shortcut: 'Ctrl+Enter 生成', light: '浅色', dark: '深色', system: '跟随系统', history: '历史', historyEmpty: '暂无模型。', loadModel: '加载', clearHistory: '清除', historyFull: '最多20条。' }
+		fr: { powered: 'Propulsé par NVIDIA TRELLIS', placeholder: 'Décrivez votre modèle 3D...', examples: 'Exemples de prompts', generate: 'Générer le modèle 3D', generating: 'Génération...', genStarted: 'Génération démarrée...', genStartedDesc: 'Environ 2-3 minutes', genRunning: 'Le modèle est en cours de génération', elapsed: 'écoulé', remaining: 'restant', genSuccess: 'Modèle 3D généré avec succès !', duration: 'Durée', genError: 'Échec de la génération', unexpected: 'Réponse API inattendue', unknownError: 'Erreur inconnue', error: 'Erreur', download: 'télécharger', downloadStarted: 'Téléchargement démarré', shortcut: 'Ctrl+Entrée pour générer', light: 'Clair', dark: 'Sombre', system: 'Système', history: 'Historique', historyEmpty: 'Aucun modèle généré.', loadModel: 'Charger', 			clearHistory: 'Effacer', historyFull: 'Max 20 entrées.', tabText: 'Texte', tabHistory: 'Historique' },
+		es: { powered: 'Impulsado por NVIDIA TRELLIS', placeholder: 'Describe tu modelo 3D...', examples: 'Prompts de ejemplo', generate: 'Generar modelo 3D', generating: 'Generando...', genStarted: 'Generación iniciada...', genStartedDesc: 'Aprox. 2-3 minutos', genRunning: 'El modelo se está generando', elapsed: 'transcurrido', remaining: 'restante', genSuccess: '¡Modelo 3D generado con éxito!', duration: 'Duración', genError: 'Error en la generación', unexpected: 'Respuesta API inesperada', unknownError: 'Error desconocido', error: 'Error', download: 'descargar', downloadStarted: 'Descarga iniciada', shortcut: 'Ctrl+Enter para generar', light: 'Claro', dark: 'Oscuro', system: 'Sistema', history: 'Historial', historyEmpty: 'Sin modelos.', loadModel: 'Cargar', 			clearHistory: 'Limpiar', historyFull: 'Máx 20 entradas.', tabText: 'Texto', tabHistory: 'Historial' },
+		it: { powered: 'Alimentato da NVIDIA TRELLIS', placeholder: 'Descrivi il tuo modello 3D...', examples: 'Prompt di esempio', generate: 'Genera modello 3D', generating: 'Generazione...', genStarted: 'Generazione avviata...', genStartedDesc: 'Circa 2-3 minuti', genRunning: 'Il modello è in fase di generazione', elapsed: 'trascorso', remaining: 'rimanente', genSuccess: 'Modello 3D generato con successo!', duration: 'Durata', genError: 'Generazione fallita', unexpected: 'Risposta API imprevista', unknownError: 'Errore sconosciuto', error: 'Errore', download: 'scarica', downloadStarted: 'Download avviato', shortcut: 'Ctrl+Invio per generare', light: 'Chiaro', dark: 'Scuro', system: 'Sistema', history: 'Cronologia', historyEmpty: 'Nessun modello.', loadModel: 'Carica', 			clearHistory: 'Cancella', historyFull: 'Max 20 elementi.', tabText: 'Testo', tabHistory: 'Cronologia' },
+		pt: { powered: 'Desenvolvido por NVIDIA TRELLIS', placeholder: 'Descreva seu modelo 3D...', examples: 'Prompts de exemplo', generate: 'Gerar modelo 3D', generating: 'Gerando...', genStarted: 'Geração iniciada...', genStartedDesc: 'Aprox. 2-3 minutos', genRunning: 'O modelo está sendo gerado', elapsed: 'decorrido', remaining: 'restante', genSuccess: 'Modelo 3D gerado com sucesso!', duration: 'Duração', genError: 'Falha na geração', unexpected: 'Resposta inesperada da API', unknownError: 'Erro desconhecido', error: 'Erro', download: 'baixar', downloadStarted: 'Download iniciado', shortcut: 'Ctrl+Enter para gerar', light: 'Claro', dark: 'Escuro', system: 'Sistema', history: 'Histórico', historyEmpty: 'Nenhum modelo.', loadModel: 'Carregar', 			clearHistory: 'Limpar', historyFull: 'Máx 20 entradas.', tabText: 'Texto', tabHistory: 'Histórico' },
+		ja: { powered: 'NVIDIA TRELLIS 搭載', placeholder: '3Dモデルを説明してください...', examples: 'プロンプト例', generate: '3Dモデルを生成', generating: '生成中...', genStarted: '生成を開始しました...', genStartedDesc: '約2-3分', genRunning: 'モデルを生成中', elapsed: '経過', remaining: '残り', genSuccess: '3Dモデルの生成に成功しました！', duration: '所要時間', genError: '生成に失敗しました', unexpected: '予期しないAPIレスポンス', unknownError: '不明なエラー', error: 'エラー', download: 'ダウンロード', downloadStarted: 'ダウンロード開始', shortcut: 'Ctrl+Enterで生成', light: 'ライト', dark: 'ダーク', system: 'システム', history: '履歴', historyEmpty: 'モデルなし。', loadModel: '読込', 			clearHistory: 'クリア', historyFull: '最大20件。', tabText: 'テキスト', tabHistory: '履歴' },
+		zh: { powered: '由 NVIDIA TRELLIS 提供支持', placeholder: '描述您的3D模型...', examples: '示例提示', generate: '生成3D模型', generating: '生成中...', genStarted: '生成已开始...', genStartedDesc: '大约2-3分钟', genRunning: '模型正在生成中', elapsed: '已用', remaining: '剩余', genSuccess: '3D模型生成成功！', duration: '用时', genError: '生成失败', unexpected: '意外的API响应', unknownError: '未知错误', error: '错误', download: '下载', downloadStarted: '下载已开始', shortcut: 'Ctrl+Enter 生成', light: '浅色', dark: '深色', system: '跟随系统', history: '历史', historyEmpty: '暂无模型。', loadModel: '加载', 			clearHistory: '清除', historyFull: '最多20条。', tabText: '文本', tabHistory: '历史' }
 	};
 
 	let resolvedTheme = $derived<'light' | 'dark'>(
@@ -181,7 +184,7 @@
 		glbBase64 = entry.base64;
 		outputFormat = (entry.format as 'glb' | 'stl') || 'glb';
 		status = 'done';
-		historyOpen = false;
+		activeTab = 'text';
 	}
 
 	function clearHistory() {
@@ -381,129 +384,138 @@
 					<X size={16} />
 				</Button>
 			</div>
+			<div class="flex border-b shrink-0">
+				<button
+					class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors relative {activeTab === 'text' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}"
+					onclick={() => activeTab = 'text'}
+				>
+					<MessageSquare size={14} />
+					{t[lang].tabText}
+					{#if activeTab === 'text'}<div class="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full"></div>{/if}
+				</button>
+				<button
+					class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors relative {activeTab === 'history' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}"
+					onclick={() => activeTab = 'history'}
+				>
+					<History size={14} />
+					{t[lang].tabHistory}
+					<Badge variant="secondary" class="text-[10px] ml-0.5 h-4 min-w-[1.2rem]">{history.length}</Badge>
+					{#if activeTab === 'history'}<div class="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full"></div>{/if}
+				</button>
+			</div>
 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
-				<Card>
-					<CardHeader class="pb-3">
-						<CardTitle class="text-sm">{t[lang].placeholder}</CardTitle>
-					</CardHeader>
-					<CardContent class="space-y-3">
-						<Textarea
-							bind:value={prompt}
-							placeholder={t[lang].placeholder}
-							maxlength={MAX_PROMPT_LENGTH}
-							rows={4}
-							class="resize-none"
-						/>
-						<span class="text-xs text-muted-foreground">{prompt.length}/{MAX_PROMPT_LENGTH}</span>
-					</CardContent>
-				</Card>
-
-				<div>
-					<Label class="text-xs text-muted-foreground mb-2 block">{t[lang].examples}</Label>
-					<div class="flex flex-wrap gap-1.5">
-						{#each examplePrompts as ep}
-							<button
-								class="rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-								onclick={() => useExample(ep)}
-							>
-								{ep.short}
-							</button>
-						{/each}
-					</div>
-				</div>
-
-				<SettingsPanel
-					bind:seed
-					bind:noTexture
-					bind:outputFormat
-					bind:slatCfgScale
-					bind:ssCfgScale
-					bind:slatSamplingSteps
-					bind:ssSamplingSteps
-					bind:open={settingsOpen}
-					{lang}
-				/>
-
-				<Button onclick={generate} disabled={status === 'generating' || !prompt.trim()} class="w-full shrink-0" size="lg">
-					{#if status === 'generating'}
-						<Loader2 size={18} class="mr-2 animate-spin" />
-						{t[lang].generating}
-					{:else}
-						<Sparkles size={18} class="mr-2" />
-						{t[lang].generate}
-					{/if}
-				</Button>
-
-				{#if status === 'generating'}
-					<Card class="border-primary/20 bg-primary/5 shrink-0">
-						<CardContent class="p-4 space-y-3">
-							<div class="flex items-center gap-3">
-								<Loader2 size={20} class="animate-spin text-primary shrink-0" />
-								<p class="text-sm font-medium">{t[lang].genRunning}</p>
-							</div>
-							<Progress value={progressPercent} class="h-1.5" />
-							<div class="flex items-center justify-between text-xs text-muted-foreground">
-								<span class="flex items-center gap-1"><Timer size={12} /> {formatTime(elapsedTime)} {t[lang].elapsed}</span>
-								<span>~{formatTime(estimatedTimeLeft)} {t[lang].remaining}</span>
-							</div>
+				{#if activeTab === 'text'}
+					<Card>
+						<CardHeader class="pb-3">
+							<CardTitle class="text-sm">{t[lang].placeholder}</CardTitle>
+						</CardHeader>
+						<CardContent class="space-y-3">
+							<Textarea
+								bind:value={prompt}
+								placeholder={t[lang].placeholder}
+								maxlength={MAX_PROMPT_LENGTH}
+								rows={4}
+								class="resize-none"
+							/>
+							<span class="text-xs text-muted-foreground">{prompt.length}/{MAX_PROMPT_LENGTH}</span>
 						</CardContent>
 					</Card>
-				{/if}
 
-				{#if status === 'error'}
-					<Alert variant="destructive" class="shrink-0">
-						<AlertCircle size={18} class="shrink-0" />
-						<AlertDescription>
-							<p class="font-medium">{t[lang].genError}</p>
-							<p class="text-xs mt-1 opacity-80">{errorMsg}</p>
-						</AlertDescription>
-					</Alert>
-				{/if}
+					<div>
+						<Label class="text-xs text-muted-foreground mb-2 block">{t[lang].examples}</Label>
+						<div class="flex flex-wrap gap-1.5">
+							{#each examplePrompts as ep}
+								<button
+									class="rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+									onclick={() => useExample(ep)}
+								>
+									{ep.short}
+								</button>
+							{/each}
+						</div>
+					</div>
 
-				{#if status === 'done' && glbBase64}
-					<Button onclick={downloadModel} variant="outline" class="w-full shrink-0">
-						<Download size={16} class="mr-2" />
-						{outputFormat.toUpperCase()} {t[lang].download}
+					<SettingsPanel
+						bind:seed
+						bind:noTexture
+						bind:outputFormat
+						bind:slatCfgScale
+						bind:ssCfgScale
+						bind:slatSamplingSteps
+						bind:ssSamplingSteps
+						bind:open={settingsOpen}
+						{lang}
+					/>
+
+					<Button onclick={generate} disabled={status === 'generating' || !prompt.trim()} class="w-full shrink-0" size="lg">
+						{#if status === 'generating'}
+							<Loader2 size={18} class="mr-2 animate-spin" />
+							{t[lang].generating}
+						{:else}
+							<Sparkles size={18} class="mr-2" />
+							{t[lang].generate}
+						{/if}
 					</Button>
-				{/if}
 
-				<Separator />
+					{#if status === 'generating'}
+						<Card class="border-primary/20 bg-primary/5 shrink-0">
+							<CardContent class="p-4 space-y-3">
+								<div class="flex items-center gap-3">
+									<Loader2 size={20} class="animate-spin text-primary shrink-0" />
+									<p class="text-sm font-medium">{t[lang].genRunning}</p>
+								</div>
+								<Progress value={progressPercent} class="h-1.5" />
+								<div class="flex items-center justify-between text-xs text-muted-foreground">
+									<span class="flex items-center gap-1"><Timer size={12} /> {formatTime(elapsedTime)} {t[lang].elapsed}</span>
+									<span>~{formatTime(estimatedTimeLeft)} {t[lang].remaining}</span>
+								</div>
+							</CardContent>
+						</Card>
+					{/if}
 
-				<div>
-					<button
-						class="flex w-full items-center justify-between py-2 text-sm font-medium"
-						onclick={() => historyOpen = !historyOpen}
-					>
-						<span class="flex items-center gap-2"><History size={14} /> {t[lang].history}</span>
-						<Badge variant="secondary" class="text-[10px]">{history.length}/20</Badge>
-					</button>
-					{#if historyOpen}
-						<div class="space-y-2 mt-2">
-							{#if history.length === 0}
-								<p class="text-xs text-muted-foreground py-4 text-center">{t[lang].historyEmpty}</p>
-							{:else}
-								<div class="flex justify-end">
-									<Button variant="ghost" size="sm" class="h-6 text-xs gap-1 text-destructive" onclick={clearHistory}>
-										<Trash2 size={12} /> {t[lang].clearHistory}
+					{#if status === 'error'}
+						<Alert variant="destructive" class="shrink-0">
+							<AlertCircle size={18} class="shrink-0" />
+							<AlertDescription>
+								<p class="font-medium">{t[lang].genError}</p>
+								<p class="text-xs mt-1 opacity-80">{errorMsg}</p>
+							</AlertDescription>
+						</Alert>
+					{/if}
+
+					{#if status === 'done' && glbBase64}
+						<Button onclick={downloadModel} variant="outline" class="w-full shrink-0">
+							<Download size={16} class="mr-2" />
+							{outputFormat.toUpperCase()} {t[lang].download}
+						</Button>
+					{/if}
+
+					<p class="text-xs text-muted-foreground text-center pb-1 shrink-0">{t[lang].shortcut}</p>
+				{:else}
+					<div class="space-y-2">
+						{#if history.length === 0}
+							<p class="text-xs text-muted-foreground py-8 text-center">{t[lang].historyEmpty}</p>
+						{:else}
+							<div class="flex justify-between items-center">
+								<span class="text-xs text-muted-foreground">{t[lang].historyFull}</span>
+								<Button variant="ghost" size="sm" class="h-6 text-xs gap-1 text-destructive" onclick={clearHistory}>
+									<Trash2 size={12} /> {t[lang].clearHistory}
+								</Button>
+							</div>
+							{#each history as entry (entry.id)}
+								<div class="flex items-center gap-2 rounded-lg border p-2">
+									<div class="flex-1 min-w-0">
+										<p class="text-xs truncate">{entry.prompt}</p>
+										<p class="text-[10px] text-muted-foreground">{new Date(entry.timestamp).toLocaleString()}</p>
+									</div>
+									<Button variant="secondary" size="sm" class="h-6 text-[10px] shrink-0" onclick={() => loadFromHistory(entry)}>
+										{t[lang].loadModel}
 									</Button>
 								</div>
-								{#each history as entry (entry.id)}
-									<div class="flex items-center gap-2 rounded-lg border p-2">
-										<div class="flex-1 min-w-0">
-											<p class="text-xs truncate">{entry.prompt}</p>
-											<p class="text-[10px] text-muted-foreground">{new Date(entry.timestamp).toLocaleString()}</p>
-										</div>
-										<Button variant="secondary" size="sm" class="h-6 text-[10px] shrink-0" onclick={() => loadFromHistory(entry)}>
-											{t[lang].loadModel}
-										</Button>
-									</div>
-								{/each}
-							{/if}
-						</div>
-					{/if}
-				</div>
-
-				<p class="text-xs text-muted-foreground text-center pb-1 shrink-0">{t[lang].shortcut}</p>
+							{/each}
+						{/if}
+					</div>
+				{/if}
 			</div>
 		</aside>
 

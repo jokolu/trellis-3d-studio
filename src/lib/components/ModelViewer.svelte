@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { createViewer } from '$lib/client/model-viewer';
-	import { RotateCw, Camera, RotateCcw, Sun, SunMedium } from 'lucide-svelte';
+	import { RotateCw, Camera, RotateCcw, Sun, SunMedium, Orbit } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import type { Lang } from '$lib/i18n';
 
@@ -19,16 +19,17 @@
 	let viewerReady = $state(false);
 	let autoRotate = $state(false);
 	let sunEnabled = $state(true);
+	let sunOrbit = $state(false);
 
 	const t: Record<Lang, Record<string, string>> = {
-		de: { placeholder: '3D-Vorschau erscheint hier', cameraReset: 'Kamera zurücksetzen', autoRotate: 'Auto-Rotation', screenshot: 'Screenshot', sunToggle: 'Sonne ein/aus' },
-		en: { placeholder: '3D preview will appear here', cameraReset: 'Reset camera', autoRotate: 'Auto-rotate', screenshot: 'Screenshot', sunToggle: 'Toggle sun' },
-		fr: { placeholder: 'L\'aperçu 3D apparaîtra ici', cameraReset: 'Réinitialiser la caméra', autoRotate: 'Rotation auto', screenshot: 'Capture d\'écran', sunToggle: 'Activer/désactiver le soleil' },
-		es: { placeholder: 'La vista previa 3D aparecerá aquí', cameraReset: 'Restablecer cámara', autoRotate: 'Auto-rotación', screenshot: 'Captura de pantalla', sunToggle: 'Activar/desactivar sol' },
-		it: { placeholder: 'L\'anteprima 3D apparirà qui', cameraReset: 'Ripristina fotocamera', autoRotate: 'Auto-rotazione', screenshot: 'Screenshot', sunToggle: 'Attiva/disattiva sole' },
-		pt: { placeholder: 'A visualização 3D aparecerá aqui', cameraReset: 'Redefinir câmera', autoRotate: 'Auto-rotação', screenshot: 'Captura de tela', sunToggle: 'Ativar/desativar sol' },
-		ja: { placeholder: '3Dプレビューがここに表示されます', cameraReset: 'カメラをリセット', autoRotate: '自動回転', screenshot: 'スクリーンショット', sunToggle: '太陽の切替' },
-		zh: { placeholder: '3D预览将显示在这里', cameraReset: '重置相机', autoRotate: '自动旋转', screenshot: '截图', sunToggle: '切换阳光' }
+		de: { placeholder: '3D-Vorschau erscheint hier', cameraReset: 'Kamera zurücksetzen', autoRotate: 'Auto-Rotation', screenshot: 'Screenshot', sunToggle: 'Sonne ein/aus', sunOrbit: 'Sonnenumlauf' },
+		en: { placeholder: '3D preview will appear here', cameraReset: 'Reset camera', autoRotate: 'Auto-rotate', screenshot: 'Screenshot', sunToggle: 'Toggle sun', sunOrbit: 'Sun orbit' },
+		fr: { placeholder: 'L\'aperçu 3D apparaîtra ici', cameraReset: 'Réinitialiser la caméra', autoRotate: 'Rotation auto', screenshot: 'Capture d\'écran', sunToggle: 'Activer/désactiver le soleil', sunOrbit: 'Orbite du soleil' },
+		es: { placeholder: 'La vista previa 3D aparecerá aquí', cameraReset: 'Restablecer cámara', autoRotate: 'Auto-rotación', screenshot: 'Captura de pantalla', sunToggle: 'Activar/desactivar sol', sunOrbit: 'Órbita del sol' },
+		it: { placeholder: 'L\'anteprima 3D apparirà qui', cameraReset: 'Ripristina fotocamera', autoRotate: 'Auto-rotazione', screenshot: 'Screenshot', sunToggle: 'Attiva/disattiva sole', sunOrbit: 'Orbita del sole' },
+		pt: { placeholder: 'A visualização 3D aparecerá aqui', cameraReset: 'Redefinir câmera', autoRotate: 'Auto-rotação', screenshot: 'Captura de tela', sunToggle: 'Ativar/desativar sol', sunOrbit: 'Órbita do sol' },
+		ja: { placeholder: '3Dプレビューがここに表示されます', cameraReset: 'カメラをリセット', autoRotate: '自動回転', screenshot: 'スクリーンショット', sunToggle: '太陽の切替', sunOrbit: '太陽の公転' },
+		zh: { placeholder: '3D预览将显示在这里', cameraReset: '重置相机', autoRotate: '自动旋转', screenshot: '截图', sunToggle: '切换阳光', sunOrbit: '太阳公转' }
 	};
 
 	onMount(() => {
@@ -64,6 +65,12 @@
 		}
 	});
 
+	$effect(() => {
+		if (viewer) {
+			viewer.setSunOrbit(sunOrbit);
+		}
+	});
+
 	function takeScreenshot() {
 		if (!viewer) return;
 		const dataUrl = viewer.takeScreenshot();
@@ -82,7 +89,7 @@
 
 <div
 	bind:this={container}
-	class="relative w-full h-full min-h-[400px] rounded-xl border bg-card overflow-hidden"
+	class="relative w-full h-full min-h-[200px] sm:min-h-[400px] rounded-xl border bg-card overflow-hidden"
 >
 	<div bind:this={canvasContainer} class="w-full h-full"></div>
 
@@ -94,11 +101,11 @@
 	{/if}
 
 	{#if glbBase64}
-		<div class="absolute bottom-4 right-4 flex items-center gap-1.5">
+		<div class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex items-center gap-1 sm:gap-1.5 flex-wrap justify-end">
 			<Button
 				variant={sunEnabled ? 'default' : 'secondary'}
 				size="icon"
-				class="h-8 w-8 shadow-md"
+				class="h-9 w-9 sm:h-8 sm:w-8 shadow-md"
 				onclick={() => (sunEnabled = !sunEnabled)}
 				title={t[lang].sunToggle}
 			>
@@ -108,19 +115,28 @@
 					<SunMedium size={14} />
 				{/if}
 			</Button>
-			<Button variant="secondary" size="icon" class="h-8 w-8 shadow-md" onclick={resetCamera} title={t[lang].cameraReset}>
+			<Button
+				variant={sunOrbit ? 'default' : 'secondary'}
+				size="icon"
+				class="h-9 w-9 sm:h-8 sm:w-8 shadow-md"
+				onclick={() => (sunOrbit = !sunOrbit)}
+				title={t[lang].sunOrbit}
+			>
+				<Orbit size={14} />
+			</Button>
+			<Button variant="secondary" size="icon" class="h-9 w-9 sm:h-8 sm:w-8 shadow-md" onclick={resetCamera} title={t[lang].cameraReset}>
 				<RotateCcw size={14} />
 			</Button>
 			<Button
 				variant={autoRotate ? 'default' : 'secondary'}
 				size="icon"
-				class="h-8 w-8 shadow-md"
+				class="h-9 w-9 sm:h-8 sm:w-8 shadow-md"
 				onclick={() => (autoRotate = !autoRotate)}
 				title={t[lang].autoRotate}
 			>
 				<RotateCw size={14} />
 			</Button>
-			<Button variant="secondary" size="icon" class="h-8 w-8 shadow-md" onclick={takeScreenshot} title={t[lang].screenshot}>
+			<Button variant="secondary" size="icon" class="h-9 w-9 sm:h-8 sm:w-8 shadow-md" onclick={takeScreenshot} title={t[lang].screenshot}>
 				<Camera size={14} />
 			</Button>
 		</div>

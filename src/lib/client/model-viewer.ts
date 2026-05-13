@@ -9,6 +9,7 @@ export function createViewer(container: HTMLElement): {
 	resize: () => void;
 	setAutoRotate: (enabled: boolean) => void;
 	setSunEnabled: (enabled: boolean) => void;
+	setSunOrbit: (enabled: boolean) => void;
 	resetCamera: () => void;
 	takeScreenshot: () => string | null;
 } {
@@ -116,6 +117,10 @@ export function createViewer(container: HTMLElement): {
 	let currentModel: THREE.Group | null = null;
 	let autoRotateEnabled = false;
 	let sunEnabled = true;
+	let sunOrbitEnabled = false;
+	let sunOrbitAngle = 0;
+	let sunBaseDistance = 15;
+	let sunBaseHeight = 22.5;
 
 	const loader = new GLTFLoader();
 
@@ -139,6 +144,8 @@ export function createViewer(container: HTMLElement): {
 		gridHelper.position.y = ground.position.y + 0.005;
 
 		const sunDist = maxDim * 3;
+		sunBaseDistance = sunDist;
+		sunBaseHeight = sunDist * 1.5;
 		sunLight.position.set(sunDist, sunDist * 1.5, sunDist);
 		sunGroup.position.copy(sunLight.position);
 		sunLight.shadow.camera.left = -maxDim * 2;
@@ -256,6 +263,18 @@ export function createViewer(container: HTMLElement): {
 		}
 	}
 
+	function setSunOrbit(enabled: boolean) {
+		sunOrbitEnabled = enabled;
+		if (!enabled && currentModel) {
+			const box = new THREE.Box3().setFromObject(currentModel);
+			const size = box.getSize(new THREE.Vector3());
+			const maxDim = Math.max(size.x, size.y, size.z);
+			const sunDist = maxDim * 3;
+			sunLight.position.set(sunDist, sunDist * 1.5, sunDist);
+			sunGroup.position.copy(sunLight.position);
+		}
+	}
+
 	function resetCamera() {
 		if (currentModel) {
 			fitCameraToModel(currentModel);
@@ -282,6 +301,16 @@ export function createViewer(container: HTMLElement): {
 		if (sunEnabled) {
 			sunGlow.scale.setScalar(1 + Math.sin(time * 2) * 0.1);
 			sunRays.scale.setScalar(1 + Math.sin(time * 1.5 + 1) * 0.15);
+
+			if (sunOrbitEnabled) {
+				sunOrbitAngle += 0.005;
+				const cx = currentModel ? new THREE.Box3().setFromObject(currentModel).getCenter(new THREE.Vector3()).x : 0;
+				const cz = currentModel ? new THREE.Box3().setFromObject(currentModel).getCenter(new THREE.Vector3()).z : 0;
+				const sx = cx + Math.cos(sunOrbitAngle) * sunBaseDistance;
+				const sz = cz + Math.sin(sunOrbitAngle) * sunBaseDistance;
+				sunLight.position.set(sx, sunBaseHeight, sz);
+				sunGroup.position.copy(sunLight.position);
+			}
 		}
 
 		renderer.render(scene, camera);
@@ -309,5 +338,5 @@ export function createViewer(container: HTMLElement): {
 		renderer.setSize(width, height);
 	}
 
-	return { loadGlb, loadGlbUrl, destroy, resize, setAutoRotate, setSunEnabled, resetCamera, takeScreenshot };
+	return { loadGlb, loadGlbUrl, destroy, resize, setAutoRotate, setSunEnabled, setSunOrbit, resetCamera, takeScreenshot };
 }
