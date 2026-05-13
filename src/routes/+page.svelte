@@ -16,7 +16,7 @@
 	import ModelViewer from '$lib/components/ModelViewer.svelte';
 	import SettingsPanel from '$lib/components/SettingsPanel.svelte';
 	import { themeStore, type Theme } from '$lib/theme';
-	import { LANGUAGES, type Lang } from '$lib/i18n';
+	import { LANGUAGES, isWindows, type Lang } from '$lib/i18n';
 	import type { TaskStatus } from '$lib/types';
 
 	let prompt = $state('');
@@ -318,16 +318,15 @@
 			<Button variant="ghost" size="icon" class="h-8 w-8 shrink-0 lg:hidden" onclick={() => sidebarOpen = !sidebarOpen}>
 				<Menu size={18} />
 			</Button>
-			<Button variant="ghost" size="icon" class="h-8 w-8 shrink-0 hidden lg:inline-flex" onclick={() => sidebarOpen = !sidebarOpen}>
-				<PanelLeft size={18} />
-			</Button>
 			<div class="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 shrink-0">
 				<Box size={15} class="text-primary" />
 			</div>
 			<h1 class="text-sm font-semibold tracking-tight leading-none hidden sm:block">3D Visualizer</h1>
+			<Button variant="ghost" size="icon" class="h-8 w-8 shrink-0 hidden lg:inline-flex" onclick={() => sidebarOpen = !sidebarOpen}>
+				<PanelLeft size={18} />
+			</Button>
 		</div>
 		<div class="flex items-center gap-1">
-			<Badge variant="secondary" class="text-[10px] hidden md:inline-flex">NVIDIA NIM</Badge>
 
 			<div class="relative">
 				<Button variant="ghost" size="icon" class="h-8 w-8" onclick={(e) => { e.stopPropagation(); langMenuOpen = !langMenuOpen; themeMenuOpen = false; }}>
@@ -340,7 +339,7 @@
 								class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground {lang === l.code ? 'font-medium' : ''}"
 								onclick={(e) => { e.stopPropagation(); setLang(l.code); }}
 							>
-								{l.flag} {l.name}
+								<span style={isWindows() ? 'font-family: Segoe UI Emoji, sans-serif' : ''}>{l.flag}</span> {l.name}
 							</button>
 						{/each}
 					</div>
@@ -376,7 +375,7 @@
 			<div class="fixed inset-0 bg-black/50 z-30 lg:hidden" onclick={() => sidebarOpen = false} role="presentation"></div>
 		{/if}
 		<aside
-			class="fixed inset-y-0 left-0 z-40 flex flex-col w-[85vw] max-w-[400px] border-r bg-background transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:w-[400px] lg:min-w-[400px] lg:max-w-[400px] lg:z-auto {sidebarOpen ? 'translate-x-0' : '-translate-x-full'}"
+			class="fixed inset-y-0 left-2 z-40 flex flex-col w-[85vw] max-w-[400px] bg-background transform transition-all duration-300 ease-in-out rounded-r-2xl shadow-2xl lg:left-0 lg:rounded-none lg:shadow-none lg:border-r lg:relative lg:z-auto {sidebarOpen ? 'translate-x-0 lg:w-[400px] lg:min-w-[400px] lg:max-w-[400px]' : '-translate-x-[calc(100%+8px)] lg:-translate-x-full lg:w-0 lg:min-w-0 lg:max-w-0 lg:overflow-hidden lg:border-r-0'}"
 		>
 			<div class="flex items-center justify-between px-4 py-3 border-b shrink-0">
 				<span class="text-sm font-medium">3D Visualizer</span>

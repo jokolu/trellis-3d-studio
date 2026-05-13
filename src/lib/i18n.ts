@@ -10,3 +10,8 @@ export const LANGUAGES: { code: Lang; flag: string; name: string }[] = [
 	{ code: 'ja', flag: '🇯🇵', name: '日本語' },
 	{ code: 'zh', flag: '🇨🇳', name: '中文' }
 ];
+
+export function isWindows(): boolean {
+	if (typeof navigator === 'undefined') return false;
+	return navigator.userAgent.includes('Windows');
+}
