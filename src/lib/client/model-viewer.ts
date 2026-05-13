@@ -8,6 +8,7 @@ export function createViewer(container: HTMLElement): {
 	destroy: () => void;
 	resize: () => void;
 	setAutoRotate: (enabled: boolean) => void;
+	setSunEnabled: (enabled: boolean) => void;
 	resetCamera: () => void;
 	takeScreenshot: () => string | null;
 } {
@@ -21,6 +22,8 @@ export function createViewer(container: HTMLElement): {
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
 	renderer.toneMappingExposure = 1.0;
+	renderer.shadowMap.enabled = true;
+	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 	container.appendChild(renderer.domElement);
 
 	const controls = new OrbitControls(camera, renderer.domElement);
@@ -31,23 +34,71 @@ export function createViewer(container: HTMLElement): {
 	controls.maxDistance = 20;
 	controls.target.set(0, 0, 0);
 
-	const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+	const ambientLight = new THREE.AmbientLight(0x404060, 0.3);
 	scene.add(ambientLight);
 
-	const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-	directionalLight.position.set(5, 10, 7);
-	directionalLight.castShadow = true;
-	scene.add(directionalLight);
+	const sunLight = new THREE.DirectionalLight(0xfff5e0, 2.5);
+	sunLight.position.set(5, 8, 5);
+	sunLight.castShadow = true;
+	sunLight.shadow.mapSize.width = 2048;
+	sunLight.shadow.mapSize.height = 2048;
+	sunLight.shadow.camera.near = 0.5;
+	sunLight.shadow.camera.far = 50;
+	sunLight.shadow.camera.left = -10;
+	sunLight.shadow.camera.right = 10;
+	sunLight.shadow.camera.top = 10;
+	sunLight.shadow.camera.bottom = -10;
+	sunLight.shadow.bias = -0.001;
+	scene.add(sunLight);
 
-	const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-	fillLight.position.set(-5, 5, -5);
-	scene.add(fillLight);
+	const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x362907, 0.4);
+	scene.add(hemisphereLight);
+
+	const sunGroup = new THREE.Group();
+
+	const sunSphere = new THREE.Mesh(
+		new THREE.SphereGeometry(0.3, 32, 32),
+		new THREE.MeshBasicMaterial({ color: 0xffdd44 })
+	);
+	sunGroup.add(sunSphere);
+
+	const sunGlow = new THREE.Mesh(
+		new THREE.SphereGeometry(0.5, 32, 32),
+		new THREE.MeshBasicMaterial({
+			color: 0xffaa00,
+			transparent: true,
+			opacity: 0.2
+		})
+	);
+	sunGroup.add(sunGlow);
+
+	const sunRays = new THREE.Mesh(
+		new THREE.SphereGeometry(0.7, 32, 32),
+		new THREE.MeshBasicMaterial({
+			color: 0xffcc00,
+			transparent: true,
+			opacity: 0.08
+		})
+	);
+	sunGroup.add(sunRays);
+
+	sunGroup.position.copy(sunLight.position);
+	scene.add(sunGroup);
+
+	const groundGeo = new THREE.PlaneGeometry(20, 20);
+	const groundMat = new THREE.ShadowMaterial({ opacity: 0.25 });
+	const ground = new THREE.Mesh(groundGeo, groundMat);
+	ground.rotation.x = -Math.PI / 2;
+	ground.position.y = -0.01;
+	ground.receiveShadow = true;
+	scene.add(ground);
 
 	const gridHelper = new THREE.GridHelper(10, 20, 0x444444, 0x222222);
 	scene.add(gridHelper);
 
 	let currentModel: THREE.Group | null = null;
 	let autoRotateEnabled = false;
+	let sunEnabled = true;
 
 	const loader = new GLTFLoader();
 
@@ -66,6 +117,21 @@ export function createViewer(container: HTMLElement): {
 		camera.position.set(center.x, center.y + maxDim * 0.3, center.z + cameraZ);
 		controls.target.set(center.x, center.y, center.z);
 		controls.update();
+
+		ground.position.y = center.y - maxDim * 0.5 - 0.01;
+		gridHelper.position.y = ground.position.y + 0.005;
+
+		const sunDist = maxDim * 3;
+		sunLight.position.set(sunDist, sunDist * 1.5, sunDist);
+		sunGroup.position.copy(sunLight.position);
+		sunLight.shadow.camera.left = -maxDim * 2;
+		sunLight.shadow.camera.right = maxDim * 2;
+		sunLight.shadow.camera.top = maxDim * 2;
+		sunLight.shadow.camera.bottom = -maxDim * 2;
+		sunLight.shadow.camera.updateProjectionMatrix();
+
+		const sunScale = Math.max(0.2, maxDim * 0.15);
+		sunGroup.scale.setScalar(sunScale);
 	}
 
 	function loadGlb(base64: string) {
@@ -83,6 +149,12 @@ export function createViewer(container: HTMLElement): {
 			url,
 			(gltf) => {
 				currentModel = gltf.scene;
+				currentModel.traverse((child) => {
+					if (child instanceof THREE.Mesh) {
+						child.castShadow = true;
+						child.receiveShadow = true;
+					}
+				});
 				scene.add(currentModel);
 				fitCameraToModel(currentModel);
 				URL.revokeObjectURL(url);
@@ -101,6 +173,12 @@ export function createViewer(container: HTMLElement): {
 			url,
 			(gltf) => {
 				currentModel = gltf.scene;
+				currentModel.traverse((child) => {
+					if (child instanceof THREE.Mesh) {
+						child.castShadow = true;
+						child.receiveShadow = true;
+					}
+				});
 				scene.add(currentModel);
 				fitCameraToModel(currentModel);
 			},
@@ -134,6 +212,18 @@ export function createViewer(container: HTMLElement): {
 		controls.autoRotateSpeed = 2.0;
 	}
 
+	function setSunEnabled(enabled: boolean) {
+		sunEnabled = enabled;
+		sunLight.visible = enabled;
+		sunGroup.visible = enabled;
+		hemisphereLight.visible = enabled;
+		if (enabled) {
+			ambientLight.intensity = 0.3;
+		} else {
+			ambientLight.intensity = 0.8;
+		}
+	}
+
 	function resetCamera() {
 		if (currentModel) {
 			fitCameraToModel(currentModel);
@@ -150,10 +240,18 @@ export function createViewer(container: HTMLElement): {
 	}
 
 	let animationId: number;
+	let time = 0;
 
 	function animate() {
 		animationId = requestAnimationFrame(animate);
+		time += 0.01;
 		controls.update();
+
+		if (sunEnabled) {
+			sunGlow.scale.setScalar(1 + Math.sin(time * 2) * 0.1);
+			sunRays.scale.setScalar(1 + Math.sin(time * 1.5 + 1) * 0.15);
+		}
+
 		renderer.render(scene, camera);
 	}
 
@@ -164,6 +262,8 @@ export function createViewer(container: HTMLElement): {
 		removeCurrentModel();
 		controls.dispose();
 		renderer.dispose();
+		ground.geometry.dispose();
+		groundMat.dispose();
 		if (renderer.domElement.parentNode) {
 			renderer.domElement.parentNode.removeChild(renderer.domElement);
 		}
@@ -177,5 +277,5 @@ export function createViewer(container: HTMLElement): {
 		renderer.setSize(width, height);
 	}
 
-	return { loadGlb, loadGlbUrl, destroy, resize, setAutoRotate, resetCamera, takeScreenshot };
+	return { loadGlb, loadGlbUrl, destroy, resize, setAutoRotate, setSunEnabled, resetCamera, takeScreenshot };
 }
