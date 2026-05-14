@@ -23,6 +23,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ error: 'Prompt is required' }, { status: 400 });
 	}
 
+	if (String(prompt).length > 77) {
+		return json({ error: `Prompt too long (${String(prompt).length}/77 characters). NVIDIA TRELLIS API accepts a maximum of 77 characters.` }, { status: 400 });
+	}
+
 	const payload: Record<string, unknown> = {
 		mode: 'text',
 		prompt: String(prompt),
@@ -38,42 +42,56 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	console.log('NVIDIA API request:', JSON.stringify({ url: apiUrl, mode: payload.mode, prompt: payload.prompt, extraKeys: Object.keys(payload).filter(k => !['mode', 'prompt', 'output_format'].includes(k)) }));
 
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), 300000);
+	const MAX_RETRIES = 2;
 
-	try {
-		const response = await fetch(apiUrl, {
-			method: 'POST',
-			headers: {
-				'Authorization': `Bearer ${apiKey}`,
-				'Accept': 'application/json',
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(payload),
-			signal: controller.signal
-		});
+	for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 300000);
 
-		clearTimeout(timeout);
+		try {
+			const response = await fetch(apiUrl, {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${apiKey}`,
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload),
+				signal: controller.signal
+			});
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			console.error('NVIDIA API error:', response.status, errorText);
-			return json(
-				{ error: `NVIDIA API ${response.status}: ${errorText.slice(0, 500)}` },
-				{ status: response.status }
-			);
+			clearTimeout(timeout);
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error('NVIDIA API error:', response.status, errorText);
+
+				if (response.status >= 500 && attempt < MAX_RETRIES) {
+					const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+					console.log(`Retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+					await new Promise((r) => setTimeout(r, delay));
+					continue;
+				}
+
+				return json(
+					{ error: `NVIDIA API ${response.status}: ${errorText.slice(0, 500)}` },
+					{ status: response.status }
+				);
+			}
+
+			const data = await response.json();
+			console.log('NVIDIA API success, artifacts:', data.artifacts?.length ?? 0);
+			return json(data);
+		} catch (err) {
+			clearTimeout(timeout);
+			const message = err instanceof Error ? err.message : String(err);
+			console.error('NVIDIA API request failed:', message);
+			if (message.includes('abort')) {
+				return json({ error: 'Request timed out after 5 minutes' }, { status: 504 });
+			}
+			return json({ error: `Connection failed: ${message}` }, { status: 502 });
 		}
-
-		const data = await response.json();
-		console.log('NVIDIA API success, artifacts:', data.artifacts?.length ?? 0);
-		return json(data);
-	} catch (err) {
-		clearTimeout(timeout);
-		const message = err instanceof Error ? err.message : String(err);
-		console.error('NVIDIA API request failed:', message);
-		if (message.includes('abort')) {
-			return json({ error: 'Request timed out after 5 minutes' }, { status: 504 });
-		}
-		return json({ error: `Connection failed: ${message}` }, { status: 502 });
 	}
+
+	return json({ error: 'NVIDIA API returned persistent server errors' }, { status: 502 });
 };

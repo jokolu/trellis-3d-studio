@@ -28,7 +28,7 @@
 	let themeMenuOpen = $state(false);
 	let langMenuOpen = $state(false);
 	let lang: Lang = $state('de');
-	let sidebarOpen = $state(false);
+	let sidebarOpen = $state(true);
 	let activeTab: 'text' | 'history' = $state('text');
 	let generationStartTime = $state(0);
 	let elapsedTime = $state(0);
@@ -42,7 +42,7 @@
 	let slatSamplingSteps = $state(12);
 	let ssSamplingSteps = $state(12);
 
-	const MAX_PROMPT_LENGTH = 512;
+	const MAX_PROMPT_LENGTH = 77;
 	const VALID_LANGS = new Set<string>(LANGUAGES.map(l => l.code));
 
 	interface HistoryEntry {
@@ -55,12 +55,12 @@
 	let history: HistoryEntry[] = $state([]);
 
 	const examplePrompts: { short: string; full: string }[] = [
-		{ short: 'A medieval battle axe with runes', full: 'A medieval battle axe with glowing Norse runes carved into the dark iron blade, a worn leather-wrapped handle, intricate engravings on the axe head, fantasy weapon style, detailed metal texture' },
-		{ short: 'Red sports car, low poly', full: 'A bright red low-poly sports car with angular geometric body panels, sleek aerodynamic shape, black tinted windows, silver alloy wheels, retro polygon art style, clean flat shading' },
-		{ short: 'Wooden treasure chest with gold', full: 'An old wooden treasure chest overflowing with gold coins and jewels, reinforced with wrought iron bands and a rusty padlock, weathered oak planks, fantasy adventure style, detailed wood grain texture' },
-		{ short: 'Cute robot with big eyes', full: 'A cute small round robot with oversized glowing blue eyes, articulated arms with three-fingered hands, a small antenna on top, pastel white and blue color scheme, friendly Pixar-like character design, smooth glossy plastic material' },
-		{ short: 'Fantasy crystal sword', full: 'A fantasy crystal sword with a translucent glowing purple crystal blade, ornate golden hilt with wing-shaped crossguard, leather-wrapped grip, magical runes etched into the blade surface, ethereal light emanating from within' },
-		{ short: 'Space station module', full: 'A detailed sci-fi space station module with cylindrical habitat sections, rotating solar panel arrays, docking ports, external piping and conduit systems, white and grey hull panels with NASA-style markings, realistic industrial design' }
+		{ short: 'Battle axe with runes', full: 'Medieval battle axe with glowing Norse runes, dark iron, leather handle' },
+		{ short: 'Red low-poly car', full: 'Red low-poly sports car, angular body, black windows, silver alloy wheels' },
+		{ short: 'Treasure chest', full: 'Wooden treasure chest, gold coins, iron bands, rusty padlock, fantasy' },
+		{ short: 'Cute robot', full: 'Cute round robot, glowing blue eyes, small antenna, white and blue' },
+		{ short: 'Crystal sword', full: 'Crystal sword, translucent purple blade, golden wing hilt, glowing runes' },
+		{ short: 'Space station', full: 'Sci-fi space station module, solar panels, docking ports, white hull' }
 	];
 
 	const t: Record<Lang, Record<string, string>> = {
